@@ -1,0 +1,26 @@
+<!--
+   MWLibrary.xml
+   LabJackU6Plugin
+
+   Created by maunsell on 6/26/10.
+   Copyright 2010 Harvard Medical School. All rights reserved.
+-->
+<MWElements>
+	<MWElement name="LabJack U6">
+		<!-- XPath 2.0 expression defining nodes of this type -->
+		<match_signature>iodevice[@type='labjacku6']</match_signature>
+		
+		<!-- Inheritance -->
+		<isa>IODevice</isa>
+		
+		<description>
+			Used for interfacing to a LabJack U6
+			</description>
+		<icon>smallIOFolder</icon>
+		
+		<!-- Payload -->
+		<code>
+			<iodevice tag="LabJack U6 IO Device" priority="" type="labjacku6" alt=""/>
+			</code>
+	</MWElement>	
+</MWElements>
