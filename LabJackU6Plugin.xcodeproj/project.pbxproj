@@ -326,6 +326,8 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 69684A1D11D6708D00DE339D /* Development.xcconfig */;
 			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_64_BIT_PRE_XCODE_3_1)";
+				ARCHS_STANDARD_64_BIT_PRE_XCODE_3_1 = x86_64;
 				FINAL_INSTALL_DIR = "$(PLUGINS_DIR)";
 			};
 			name = Development;
