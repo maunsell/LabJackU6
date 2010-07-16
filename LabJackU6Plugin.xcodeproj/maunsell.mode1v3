@@ -195,9 +195,123 @@
 	<key>Name</key>
 	<string>Default</string>
 	<key>Notifications</key>
-	<array/>
+	<array>
+		<dict>
+			<key>XCObserverAutoDisconnectKey</key>
+			<true/>
+			<key>XCObserverDefintionKey</key>
+			<dict>
+				<key>PBXStatusErrorsKey</key>
+				<integer>0</integer>
+			</dict>
+			<key>XCObserverFactoryKey</key>
+			<string>XCPerspectivesSpecificationIdentifier</string>
+			<key>XCObserverGUIDKey</key>
+			<string>XCObserverProjectIdentifier</string>
+			<key>XCObserverNotificationKey</key>
+			<string>PBXStatusBuildStateMessageNotification</string>
+			<key>XCObserverTargetKey</key>
+			<string>XCMainBuildResultsModuleGUID</string>
+			<key>XCObserverTriggerKey</key>
+			<string>awakenModuleWithObserver:</string>
+			<key>XCObserverValidationKey</key>
+			<dict>
+				<key>PBXStatusErrorsKey</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>XCObserverAutoDisconnectKey</key>
+			<true/>
+			<key>XCObserverDefintionKey</key>
+			<dict>
+				<key>PBXStatusWarningsKey</key>
+				<integer>0</integer>
+			</dict>
+			<key>XCObserverFactoryKey</key>
+			<string>XCPerspectivesSpecificationIdentifier</string>
+			<key>XCObserverGUIDKey</key>
+			<string>XCObserverProjectIdentifier</string>
+			<key>XCObserverNotificationKey</key>
+			<string>PBXStatusBuildStateMessageNotification</string>
+			<key>XCObserverTargetKey</key>
+			<string>XCMainBuildResultsModuleGUID</string>
+			<key>XCObserverTriggerKey</key>
+			<string>awakenModuleWithObserver:</string>
+			<key>XCObserverValidationKey</key>
+			<dict>
+				<key>PBXStatusWarningsKey</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>XCObserverAutoDisconnectKey</key>
+			<true/>
+			<key>XCObserverDefintionKey</key>
+			<dict>
+				<key>PBXStatusAnalyzerResultsKey</key>
+				<integer>0</integer>
+			</dict>
+			<key>XCObserverFactoryKey</key>
+			<string>XCPerspectivesSpecificationIdentifier</string>
+			<key>XCObserverGUIDKey</key>
+			<string>XCObserverProjectIdentifier</string>
+			<key>XCObserverNotificationKey</key>
+			<string>PBXStatusBuildStateMessageNotification</string>
+			<key>XCObserverTargetKey</key>
+			<string>XCMainBuildResultsModuleGUID</string>
+			<key>XCObserverTriggerKey</key>
+			<string>awakenModuleWithObserver:</string>
+			<key>XCObserverValidationKey</key>
+			<dict>
+				<key>PBXStatusAnalyzerResultsKey</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+	</array>
 	<key>OpenEditors</key>
-	<array/>
+	<array>
+		<dict>
+			<key>Content</key>
+			<dict>
+				<key>PBXProjectModuleGUID</key>
+				<string>69DC5CC611EFE6E800D776BA</string>
+				<key>PBXProjectModuleLabel</key>
+				<string>LabJackU6Device.h</string>
+				<key>PBXSplitModuleInNavigatorKey</key>
+				<dict>
+					<key>Split0</key>
+					<dict>
+						<key>PBXProjectModuleGUID</key>
+						<string>69DC5CC711EFE6E800D776BA</string>
+						<key>PBXProjectModuleLabel</key>
+						<string>LabJackU6Device.h</string>
+						<key>_historyCapacity</key>
+						<integer>20</integer>
+						<key>bookmark</key>
+						<string>69DC5CD811EFE74C00D776BA</string>
+						<key>history</key>
+						<array>
+							<string>69DC5CD711EFE74C00D776BA</string>
+						</array>
+					</dict>
+					<key>SplitCount</key>
+					<string>1</string>
+				</dict>
+				<key>StatusBarVisibility</key>
+				<true/>
+			</dict>
+			<key>Geometry</key>
+			<dict>
+				<key>Frame</key>
+				<string>{{0, 20}, {934, 1301}}</string>
+				<key>PBXModuleWindowStatusBarHidden2</key>
+				<false/>
+				<key>RubberWindowFrame</key>
+				<string>1355 149 934 1342 0 0 2560 1578 </string>
+			</dict>
+		</dict>
+	</array>
 	<key>PerspectiveWidths</key>
 	<array>
 		<integer>-1</integer>
@@ -279,11 +393,13 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
+									<integer>6</integer>
+									<integer>4</integer>
 									<integer>0</integer>
 								</array>
 							</array>
 							<key>PBXSmartGroupTreeModuleOutlineStateVisibleRectKey</key>
-							<string>{{0, 0}, {392, 823}}</string>
+							<string>{{0, 0}, {392, 1215}}</string>
 						</dict>
 						<key>PBXTopSmartGroupGIDs</key>
 						<array/>
@@ -295,14 +411,18 @@
 					<key>GeometryConfiguration</key>
 					<dict>
 						<key>Frame</key>
-						<string>{{0, 0}, {409, 841}}</string>
+						<string>{{0, 0}, {409, 1233}}</string>
 						<key>GroupTreeTableConfiguration</key>
 						<array>
 							<string>MainColumn</string>
 							<real>392</real>
 						</array>
 						<key>RubberWindowFrame</key>
+<<<<<<< HEAD
 						<string>13 146 1208 882 0 0 1680 1028 </string>
+=======
+						<string>29 304 1439 1274 0 0 2560 1578 </string>
+>>>>>>> origin/master
 					</dict>
 					<key>Module</key>
 					<string>PBXSmartGroupTreeModule</string>
@@ -320,7 +440,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>1CE0B20306471E060097A5F4</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>LabJackU6Device.cpp</string>
+								<string>LabJackU6Device.h</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -328,11 +448,15 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>1CE0B20406471E060097A5F4</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>LabJackU6Device.cpp</string>
+										<string>LabJackU6Device.h</string>
 										<key>_historyCapacity</key>
 										<integer>20</integer>
 										<key>bookmark</key>
+<<<<<<< HEAD
 										<string>69B24E1311EF9378005CD64F</string>
+=======
+										<string>69DC5CD611EFE74C00D776BA</string>
+>>>>>>> origin/master
 										<key>history</key>
 										<array>
 											<string>69774DA611D41235009051BC</string>
@@ -347,9 +471,15 @@
 											<string>69684B1811D6B1DD00DE339D</string>
 											<string>69684B6F11D6BCFE00DE339D</string>
 											<string>691FB3A111D7DFE60098DBE6</string>
+<<<<<<< HEAD
 											<string>69C0144211E8E23900421C3F</string>
 											<string>69C0145611E964B500421C3F</string>
 											<string>693BEE5211EE4D7E00F228C7</string>
+=======
+											<string>69DC5CA611EFE4BE00D776BA</string>
+											<string>69DC5CC411EFE6E800D776BA</string>
+											<string>69DC5CD311EFE74900D776BA</string>
+>>>>>>> origin/master
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -361,14 +491,24 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
+<<<<<<< HEAD
 								<string>{{0, 0}, {794, 791}}</string>
 								<key>RubberWindowFrame</key>
 								<string>13 146 1208 882 0 0 1680 1028 </string>
+=======
+								<string>{{0, 0}, {1025, 1181}}</string>
+								<key>RubberWindowFrame</key>
+								<string>29 304 1439 1274 0 0 2560 1578 </string>
+>>>>>>> origin/master
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
 							<key>Proportion</key>
+<<<<<<< HEAD
 							<string>791pt</string>
+=======
+							<string>1181pt</string>
+>>>>>>> origin/master
 						</dict>
 						<dict>
 							<key>ContentConfiguration</key>
@@ -381,18 +521,28 @@
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
+<<<<<<< HEAD
 								<string>{{0, 796}, {794, 45}}</string>
 								<key>RubberWindowFrame</key>
 								<string>13 146 1208 882 0 0 1680 1028 </string>
+=======
+								<string>{{0, 1186}, {1025, 47}}</string>
+								<key>RubberWindowFrame</key>
+								<string>29 304 1439 1274 0 0 2560 1578 </string>
+>>>>>>> origin/master
 							</dict>
 							<key>Module</key>
 							<string>XCDetailModule</string>
 							<key>Proportion</key>
+<<<<<<< HEAD
 							<string>45pt</string>
+=======
+							<string>47pt</string>
+>>>>>>> origin/master
 						</dict>
 					</array>
 					<key>Proportion</key>
-					<string>794pt</string>
+					<string>1025pt</string>
 				</dict>
 			</array>
 			<key>Name</key>
@@ -407,9 +557,15 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
+<<<<<<< HEAD
 				<string>69B24E1411EF9378005CD64F</string>
 				<string>1CE0B1FE06471DED0097A5F4</string>
 				<string>69B24E1511EF9378005CD64F</string>
+=======
+				<string>69DC5CA911EFE4BE00D776BA</string>
+				<string>1CE0B1FE06471DED0097A5F4</string>
+				<string>69DC5CAA11EFE4BE00D776BA</string>
+>>>>>>> origin/master
 				<string>1CE0B20306471E060097A5F4</string>
 				<string>1CE0B20506471E060097A5F4</string>
 			</array>
@@ -530,7 +686,7 @@
 	<key>StatusbarIsVisible</key>
 	<true/>
 	<key>TimeStamp</key>
-	<real>0.0</real>
+	<real>300934988.941585</real>
 	<key>ToolbarConfigUserDefaultsMinorVersion</key>
 	<string>2</string>
 	<key>ToolbarDisplayMode</key>
@@ -548,10 +704,16 @@
 	<key>WindowOrderList</key>
 	<array>
 		<string>696C225A11CC287F006C68A9</string>
-		<string>/Users/maunsell/Development/LabJackU6/LabJackU6Plugin.xcodeproj</string>
+		<string>1C530D57069F1CE1000CFCEE</string>
+		<string>69DC5CC611EFE6E800D776BA</string>
+		<string>/Users/maunsell/Documents/Development/MonkeyWorks/LabJackU6/LabJackU6Plugin.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
+<<<<<<< HEAD
 	<string>13 146 1208 882 0 0 1680 1028 </string>
+=======
+	<string>29 304 1439 1274 0 0 2560 1578 </string>
+>>>>>>> origin/master
 	<key>WindowToolsV3</key>
 	<array>
 		<dict>
@@ -572,7 +734,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>1CD0528F0623707200166675</string>
 								<key>PBXProjectModuleLabel</key>
-								<string></string>
+								<string>LabJackU6Device.h</string>
 								<key>StatusBarVisibility</key>
 								<true/>
 							</dict>
@@ -581,7 +743,7 @@
 								<key>Frame</key>
 								<string>{{0, 0}, {959, 543}}</string>
 								<key>RubberWindowFrame</key>
-								<string>684 147 959 881 0 0 1680 1028 </string>
+								<string>1519 697 959 881 0 0 2560 1578 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
@@ -598,16 +760,16 @@
 								<key>PBXProjectModuleLabel</key>
 								<string>Build Results</string>
 								<key>XCBuildResultsTrigger_Collapse</key>
-								<integer>1021</integer>
+								<integer>1022</integer>
 								<key>XCBuildResultsTrigger_Open</key>
-								<integer>1011</integer>
+								<integer>1013</integer>
 							</dict>
 							<key>GeometryConfiguration</key>
 							<dict>
 								<key>Frame</key>
 								<string>{{0, 548}, {959, 292}}</string>
 								<key>RubberWindowFrame</key>
-								<string>684 147 959 881 0 0 1680 1028 </string>
+								<string>1519 697 959 881 0 0 2560 1578 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXBuildResultsModule</string>
@@ -630,7 +792,11 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>696C225A11CC287F006C68A9</string>
+<<<<<<< HEAD
 				<string>69B24E1011EF9369005CD64F</string>
+=======
+				<string>69DC5CAB11EFE4BE00D776BA</string>
+>>>>>>> origin/master
 				<string>1CD0528F0623707200166675</string>
 				<string>XCMainBuildResultsModuleGUID</string>
 			</array>
@@ -639,7 +805,7 @@
 			<key>WindowContentMinSize</key>
 			<string>486 300</string>
 			<key>WindowString</key>
-			<string>684 147 959 881 0 0 1680 1028 </string>
+			<string>1519 697 959 881 0 0 2560 1578 </string>
 			<key>WindowToolGUID</key>
 			<string>696C225A11CC287F006C68A9</string>
 			<key>WindowToolIsVisible</key>
@@ -752,13 +918,13 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>1CD10A99069EF8BA00B06720</string>
-				<string>695F775711EE2DD800F73960</string>
+				<string>69DC5C9011EFE45100D776BA</string>
 				<string>1C162984064C10D400B95A72</string>
-				<string>695F775811EE2DD800F73960</string>
-				<string>695F775911EE2DD800F73960</string>
-				<string>695F775A11EE2DD800F73960</string>
-				<string>695F775B11EE2DD800F73960</string>
-				<string>695F775C11EE2DD800F73960</string>
+				<string>69DC5C9111EFE45100D776BA</string>
+				<string>69DC5C9211EFE45100D776BA</string>
+				<string>69DC5C9311EFE45100D776BA</string>
+				<string>69DC5C9411EFE45100D776BA</string>
+				<string>69DC5C9511EFE45100D776BA</string>
 			</array>
 			<key>ToolbarConfiguration</key>
 			<string>xcode.toolbar.config.debugV3</string>
@@ -790,7 +956,7 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>1CDD528C0622207200134675</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>LabJackU6Device.cpp</string>
+										<string>LabJackU6Device.h</string>
 										<key>StatusBarVisibility</key>
 										<true/>
 									</dict>
@@ -811,6 +977,8 @@
 							<string>986pt</string>
 						</dict>
 						<dict>
+							<key>BecomeActive</key>
+							<true/>
 							<key>ContentConfiguration</key>
 							<dict>
 								<key>PBXProjectModuleGUID</key>
@@ -846,8 +1014,8 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>1C530D57069F1CE1000CFCEE</string>
-				<string>697F760511E8E08A006EE219</string>
-				<string>697F760611E8E08A006EE219</string>
+				<string>69DC5CC211EFE6E600D776BA</string>
+				<string>69DC5CC311EFE6E600D776BA</string>
 				<string>1CDD528C0622207200134675</string>
 				<string>1CD0528E0623707200166675</string>
 			</array>
