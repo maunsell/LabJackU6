@@ -20,6 +20,7 @@
 #define kDIDeadtimeUS	5000	
 #define kDIReportTimeUS	5000
 
+#define LJU6_LEVERSOLENOID_FIO 2
 #define LJU6_LEVERPRESS_FIO 1
 #define LJU6_REWARD_FIO     0
 #define LJU6_EMPIRICAL_DO_LATENCY_MS 1   // average when plugged into a highspeed hub.  About 8ms otherwise
@@ -50,7 +51,8 @@ using namespace mw;
 LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_scheduler,
                                  const boost::shared_ptr <Variable> _pulseDurationMS,
                                  const boost::shared_ptr <Variable> _pulseOn,
-                                 const boost::shared_ptr <Variable> _leverPress)
+                                 const boost::shared_ptr <Variable> _leverPress, 
+                                 const boost::shared_ptr <Variable> _leverSolenoid)
 {
 	if (VERBOSE_IO_DEVICE >= 2) {
 		mprintf("LabJackU6Device: constructor");
@@ -59,6 +61,7 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
 	pulseDurationMS = _pulseDurationMS;
 	pulseOn = _pulseOn;
 	leverPress = _leverPress;
+    leverSolenoid = _leverSolenoid;
 	deviceIOrunning = false;
     ljHandle = NULL;
     lastLeverPressValue = -1;  // -1 means always report first value
@@ -169,10 +172,19 @@ void LabJackU6Device::pulseDOLow() {
     }
 }
     
-// Takes the driver lock and releases it
+void LabJackU6Device::solenoidDO(bool state) {
+    // Takes and releases driver lock
+    boost::mutex::scoped_lock lock(ljU6DriverLock);
 
-bool LabJackU6Device::readDI() {
+    if (eDO(ljHandle, LJU6_LEVERSOLENOID_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing lever solenoid state; device likely to be broken (state %d)", state);
+    }
+}
 	
+
+bool LabJackU6Device::readDI()
+// Takes the driver lock and releases it
+{
     long int state;
 	shared_ptr <Clock> clock = Clock::instance();
 	static bool lastState = 0xff;
@@ -400,7 +412,12 @@ bool LabJackU6Device::stopDeviceIO(){
 		mprintf("LabJackU6Device: stopDeviceIO");
 	}
 	if (!deviceIOrunning) {
-        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "stopDeviceIO: already stopped on entry");
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "stopDeviceIO: already stopped on entry; using this chance to turn off lever solenoid");
+        
+        // force off solenoid
+        this->leverSolenoid->setValue(false);
+        solenoidDO(false);
+		
 		return false;
 	}
 	
@@ -428,6 +445,7 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	const char *PULSE_DURATION = "pulse_duration";
 	const char *PULSE_ON = "pulse_on";
 	const char *LEVER_PRESS = "lever_press";
+	const char *LEVER_SOLENOID = "lever_solenoid";
 	
 	REQUIRE_ATTRIBUTES(parameters, PULSE_DURATION);
 	
@@ -458,24 +476,39 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 					   parameters.find(LEVER_PRESS)->second);
 	}
 	
+    boost::shared_ptr<mw::Variable> lever_solenoid = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
+	if(parameters.find(LEVER_SOLENOID) != parameters.end()) {
+		lever_solenoid = reg->getVariable(parameters.find(LEVER_SOLENOID)->second);	
+		checkAttribute(lever_solenoid,
+					   parameters.find("reference_id")->second, 
+					   LEVER_SOLENOID, 
+					   parameters.find(LEVER_SOLENOID)->second);
+	}
+	
 	boost::shared_ptr <mw::Scheduler> scheduler = mw::Scheduler::instance(true);
 	
 	boost::shared_ptr <mw::Component> new_daq = boost::shared_ptr<mw::Component>(new LabJackU6Device(scheduler,
 																								  pulse_duration, 
 																								  pulse_on, 
-                                                                                                     lever_press));
-
-																								  
-
+                                                                                                     lever_press, 
+                                                                                                     lever_solenoid));
 	return new_daq;
 }	
 
 void LabJackU6Device::variableSetup() {
+	
 	shared_ptr<Variable> doReward = this->pulseOn;
-
 	weak_ptr<LabJackU6Device> weak_self_ref(getSelfPtr<LabJackU6Device>());
 	shared_ptr<VariableNotification> notif(new LabJackU6DeviceOutputNotification(weak_self_ref));
 	doReward->addNotification(notif);
+    
+// leverSolenoid
+    
+	shared_ptr<Variable> doLS = this->leverSolenoid;
+    weak_ptr<LabJackU6Device> weak_self_ref2(getSelfPtr<LabJackU6Device>());
+	shared_ptr<VariableNotification> notif2(new LabJackU6DeviceLSNotification(weak_self_ref));
+	doLS->addNotification(notif2);
+    
 	connected = true;	
 }
 
@@ -501,6 +534,8 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     uint8 sendDataBuff[6]; // recDataBuff[1];
     uint8 Errorcode, ErrorFrame;
 
+    // Don't configure the leversolenoid port, just use eDO
+    
     // setup one to be output, one input, and set output to zero
     sendDataBuff[0] = 13;       //IOType is BitDirWrite
     sendDataBuff[1] = (LJU6_LEVERPRESS_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
@@ -517,6 +552,11 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     }
     if(Errorcode) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
+        return false;
+    }
+
+    if (eDO(Handle, LJU6_LEVERSOLENOID_FIO, 0) < 0) {  // set to low, automatically configures too
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
         return false;
     }
 

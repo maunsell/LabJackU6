@@ -10,14 +10,6 @@
 			8D5B49AC048680CD000E48DA /* LabJackU6Plugin */,
 		);
 		breakpoints = (
-			691FB39211D7DFA40098DBE6 /* LabJackU6Device.cpp:343 */,
-			691FB39411D7DFA80098DBE6 /* LabJackU6Device.cpp:352 */,
-			691FB39A11D7DFC10098DBE6 /* LabJackU6Device.cpp:72 */,
-			691FB39C11D7DFC40098DBE6 /* LabJackU6Device.cpp:77 */,
-			691FB3C611D7E0F10098DBE6 /* LabJackU6Device.cpp:362 */,
-			691FB3C811D7E0F40098DBE6 /* LabJackU6Device.cpp:399 */,
-			691FB3CE11D7E1020098DBE6 /* LabJackU6Device.cpp:536 */,
-			691FB3D011D7E1050098DBE6 /* LabJackU6Device.cpp:555 */,
 		);
 		codeSenseManager = 696C224F11CC0FAA006C68A9 /* Code sense */;
 		executables = (
@@ -43,7 +35,7 @@
 				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
 				PBXFileTableDataSourceColumnWidthsKey = (
 					20,
-					555,
+					786,
 					20,
 					48,
 					43,
@@ -94,13 +86,11 @@
 					PBXFileDataSource_Warnings_ColumnID,
 				);
 			};
-			PBXPerProjectTemplateStateSaveDate = 300830045;
-			PBXWorkspaceStateSaveDate = 300830045;
+			PBXPerProjectTemplateStateSaveDate = 300934284;
+			PBXWorkspaceStateSaveDate = 300934284;
 		};
 		perUserProjectItems = {
 			691FB3A111D7DFE60098DBE6 /* PBXTextBookmark */ = 691FB3A111D7DFE60098DBE6 /* PBXTextBookmark */;
-			693BEE5211EE4D7E00F228C7 /* PBXTextBookmark */ = 693BEE5211EE4D7E00F228C7 /* PBXTextBookmark */;
-			695F775611EE2DD800F73960 /* PBXTextBookmark */ = 695F775611EE2DD800F73960 /* PBXTextBookmark */;
 			69684A0711D66FF700DE339D /* PBXTextBookmark */ = 69684A0711D66FF700DE339D /* PBXTextBookmark */;
 			69684A0811D66FF700DE339D /* PBXTextBookmark */ = 69684A0811D66FF700DE339D /* PBXTextBookmark */;
 			69684A0911D66FF700DE339D /* PBXTextBookmark */ = 69684A0911D66FF700DE339D /* PBXTextBookmark */;
@@ -112,8 +102,12 @@
 			69774E6A11D416D8009051BC /* PBXTextBookmark */ = 69774E6A11D416D8009051BC /* PBXTextBookmark */;
 			69869FD311D54BAE007D553C /* PlistBookmark */ = 69869FD311D54BAE007D553C /* PlistBookmark */;
 			69869FD411D54BAE007D553C /* PBXTextBookmark */ = 69869FD411D54BAE007D553C /* PBXTextBookmark */;
-			69C0144211E8E23900421C3F /* PBXTextBookmark */ = 69C0144211E8E23900421C3F /* PBXTextBookmark */;
-			69C0145611E964B500421C3F /* PBXTextBookmark */ = 69C0145611E964B500421C3F /* PBXTextBookmark */;
+			69DC5CA611EFE4BE00D776BA /* PBXTextBookmark */ = 69DC5CA611EFE4BE00D776BA /* PBXTextBookmark */;
+			69DC5CC411EFE6E800D776BA /* PBXTextBookmark */ = 69DC5CC411EFE6E800D776BA /* PBXTextBookmark */;
+			69DC5CD311EFE74900D776BA /* XCBuildMessageTextBookmark */ = 69DC5CD311EFE74900D776BA /* XCBuildMessageTextBookmark */;
+			69DC5CD611EFE74C00D776BA /* PBXTextBookmark */ = 69DC5CD611EFE74C00D776BA /* PBXTextBookmark */;
+			69DC5CD711EFE74C00D776BA /* PBXTextBookmark */ = 69DC5CD711EFE74C00D776BA /* PBXTextBookmark */;
+			69DC5CD811EFE74C00D776BA /* PBXTextBookmark */ = 69DC5CD811EFE74C00D776BA /* PBXTextBookmark */;
 		};
 		sourceControlManager = 696C224E11CC0FAA006C68A9 /* Source Control */;
 		userBuildSettings = {
@@ -129,78 +123,6 @@
 	5CFC67A50F2A848000552431 /* Everything */ = {
 		activeExec = 0;
 	};
-	691FB39211D7DFA40098DBE6 /* LabJackU6Device.cpp:343 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::startup()";
-		hitCount = 0;
-		ignoreCount = 0;
-		lineNumber = 343;
-		location = LabJackU6Plugin;
-		modificationTime = 299363573.64907;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
-	691FB39411D7DFA80098DBE6 /* LabJackU6Device.cpp:352 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::shutdown()";
-		hitCount = 0;
-		ignoreCount = 0;
-		lineNumber = 352;
-		location = LabJackU6Plugin;
-		modificationTime = 299363573.6491639;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
-	691FB39A11D7DFC10098DBE6 /* LabJackU6Device.cpp:72 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::LabJackU6Device(const LabJackU6Device& copy)";
-		hitCount = 0;
-		ignoreCount = 0;
-		lineNumber = 72;
-		location = LabJackU6Plugin;
-		modificationTime = 299363573.649262;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
-	691FB39C11D7DFC40098DBE6 /* LabJackU6Device.cpp:77 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::~LabJackU6Device()";
-		hitCount = 0;
-		ignoreCount = 0;
-		lineNumber = 77;
-		location = LabJackU6Plugin;
-		modificationTime = 299363573.64938;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
 	691FB3A111D7DFE60098DBE6 /* PBXTextBookmark */ = {
 		isa = PBXTextBookmark;
 		fRef = 69684B0E11D6B13F00DE339D /* MWLibrary.xml */;
@@ -209,98 +131,6 @@
 		rLoc = 615;
 		rType = 0;
 		vrLen = 616;
-		vrLoc = 0;
-	};
-	691FB3C611D7E0F10098DBE6 /* LabJackU6Device.cpp:362 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::startDeviceIO()";
-		hitCount = 0;
-		ignoreCount = 0;
-		lineNumber = 362;
-		location = LabJackU6Plugin;
-		modificationTime = 299363573.649913;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
-	691FB3C811D7E0F40098DBE6 /* LabJackU6Device.cpp:399 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::stopDeviceIO()";
-		hitCount = 2;
-		ignoreCount = 0;
-		lineNumber = 399;
-		location = LabJackU6Plugin;
-		modificationTime = 299363732.934136;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
-	691FB3CE11D7E1020098DBE6 /* LabJackU6Device.cpp:536 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::ljU6ReadDI(HANDLE Handle, long Channel, long* State)";
-		hitCount = 0;
-		ignoreCount = 0;
-		lineNumber = 536;
-		location = LabJackU6Plugin;
-		modificationTime = 299363573.650199;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
-	691FB3D011D7E1050098DBE6 /* LabJackU6Device.cpp:555 */ = {
-		isa = PBXFileBreakpoint;
-		actions = (
-		);
-		breakpointStyle = 0;
-		continueAfterActions = 0;
-		countType = 0;
-		delayBeforeContinue = 0;
-		fileReference = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		functionName = "LabJackU6Device::ljU6WriteDI(HANDLE Handle, long Channel, long State)";
-		hitCount = 0;
-		ignoreCount = 0;
-		lineNumber = 555;
-		location = LabJackU6Plugin;
-		modificationTime = 299363573.650294;
-		originalNumberOfMultipleMatches = 1;
-		state = 1;
-	};
-	693BEE5211EE4D7E00F228C7 /* PBXTextBookmark */ = {
-		isa = PBXTextBookmark;
-		fRef = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		name = "LabJackU6Device.cpp: 10";
-		rLen = 8;
-		rLoc = 176;
-		rType = 0;
-		vrLen = 1793;
-		vrLoc = 0;
-	};
-	695F775611EE2DD800F73960 /* PBXTextBookmark */ = {
-		isa = PBXTextBookmark;
-		fRef = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
-		name = "LabJackU6Device.cpp: 10";
-		rLen = 8;
-		rLoc = 176;
-		rType = 0;
-		vrLen = 2014;
 		vrLoc = 0;
 	};
 	696849B911D63D4000DE339D /* glew.h */ = {
@@ -421,6 +251,11 @@
 		name = shared_ptr.hpp;
 		path = "/Library/Application Support/MWorks/Developer/include/boost/smart_ptr/shared_ptr.hpp";
 		sourceTree = "<absolute>";
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {1056, 9646}}";
+			sepNavSelRange = "{4496, 0}";
+			sepNavVisRange = "{4004, 913}";
+		};
 	};
 	69684A1D11D6708D00DE339D /* Development.xcconfig */ = {
 		uiCtxt = {
@@ -532,7 +367,7 @@
 		vrLen = 101;
 		vrLoc = 0;
 	};
-	69C0144211E8E23900421C3F /* PBXTextBookmark */ = {
+	69DC5CA611EFE4BE00D776BA /* PBXTextBookmark */ = {
 		isa = PBXTextBookmark;
 		fRef = 81BCE9C91180B39E00C0AC5B /* LabJackU6Plugin.cpp */;
 		name = "LabJackU6Plugin.cpp: 20";
@@ -542,15 +377,73 @@
 		vrLen = 607;
 		vrLoc = 0;
 	};
-	69C0145611E964B500421C3F /* PBXTextBookmark */ = {
+	69DC5CC411EFE6E800D776BA /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = 81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */;
+		name = "LabJackU6Device.cpp: 502";
+		rLen = 33;
+		rLoc = 18150;
+		rType = 0;
+		vrLen = 3571;
+		vrLoc = 16454;
+	};
+	69DC5CC911EFE6E800D776BA /* LabJackU6Device.h */ = {
+		isa = PBXFileReference;
+		lastKnownFileType = sourcecode.c.h;
+		name = LabJackU6Device.h;
+		path = "/Users/maunsell/Desktop/Histed LabJackU6/LabJackU6Device.h";
+		sourceTree = "<absolute>";
+	};
+	69DC5CD311EFE74900D776BA /* XCBuildMessageTextBookmark */ = {
+		isa = PBXTextBookmark;
+		comments = "Expected ',' or '...' before '&' token";
+		fRef = 81BCE9CC1180B3A600C0AC5B /* LabJackU6Device.h */;
+		fallbackIsa = XCBuildMessageTextBookmark;
+		rLen = 1;
+		rLoc = 168;
+		rType = 1;
+	};
+	69DC5CD611EFE74C00D776BA /* PBXTextBookmark */ = {
 		isa = PBXTextBookmark;
 		fRef = 81BCE9CC1180B3A600C0AC5B /* LabJackU6Device.h */;
-		name = "LabJackU6Device.h: 21";
+		name = "LabJackU6Device.h: 169";
 		rLen = 0;
-		rLoc = 497;
+		rLoc = 4253;
 		rType = 0;
-		vrLen = 2004;
-		vrLoc = 0;
+		vrLen = 1609;
+		vrLoc = 2776;
+	};
+	69DC5CD711EFE74C00D776BA /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = 69DC5CC911EFE6E800D776BA /* LabJackU6Device.h */;
+		name = "LabJackU6Device.h: 52";
+		rLen = 52;
+		rLoc = 1439;
+		rType = 0;
+		vrLen = 2632;
+		vrLoc = 413;
+	};
+	69DC5CD811EFE74C00D776BA /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = 69DC5CD911EFE74C00D776BA /* LabJackU6Device.h */;
+		name = "LabJackU6Device.h: 159";
+		rLen = 379;
+		rLoc = 4216;
+		rType = 0;
+		vrLen = 1798;
+		vrLoc = 2834;
+	};
+	69DC5CD911EFE74C00D776BA /* LabJackU6Device.h */ = {
+		isa = PBXFileReference;
+		name = LabJackU6Device.h;
+		path = "/Users/maunsell/Desktop/Histed LabJackU6/LabJackU6Device.h";
+		sourceTree = "<absolute>";
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {875, 2576}}";
+			sepNavSelRange = "{4216, 379}";
+			sepNavVisRange = "{2834, 1798}";
+			sepNavWindowFrame = "{{1355, 93}, {934, 1398}}";
+		};
 	};
 	8173562F11861FDD0080AEB7 /* u6.c */ = {
 		uiCtxt = {
@@ -575,24 +468,25 @@
 	};
 	81BCE9C91180B39E00C0AC5B /* LabJackU6Plugin.cpp */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {733, 930}}";
-			sepNavSelRange = "{426, 9}";
+			sepNavIntBoundsRect = "{{0, 0}, {898, 511}}";
+			sepNavSelRange = "{0, 0}";
 			sepNavVisRange = "{0, 607}";
 		};
 	};
 	81BCE9CB1180B3A600C0AC5B /* LabJackU6Device.cpp */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {817, 7579}}";
-			sepNavSelRange = "{176, 8}";
-			sepNavVisRange = "{0, 1793}";
+			sepNavIntBoundsRect = "{{0, 0}, {898, 8568}}";
+			sepNavSelRange = "{18390, 0}";
+			sepNavVisRange = "{17803, 1305}";
 			sepNavWindowFrame = "{{15, 173}, {1371, 1400}}";
 		};
 	};
 	81BCE9CC1180B3A600C0AC5B /* LabJackU6Device.h */ = {
 		uiCtxt = {
-			sepNavIntBoundsRect = "{{0, 0}, {733, 2030}}";
-			sepNavSelRange = "{497, 0}";
-			sepNavVisRange = "{0, 2004}";
+			sepNavIntBoundsRect = "{{0, 0}, {1003, 2422}}";
+			sepNavSelRange = "{719, 33}";
+			sepNavVisRange = "{0, 1870}";
+			sepNavWindowFrame = "{{193, 125}, {934, 1398}}";
 		};
 	};
 	81BCE9CD1180B3A600C0AC5B /* LabJackU6Plugin_Prefix.pch */ = {
