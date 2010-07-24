@@ -432,7 +432,7 @@ bool LabJackU6Device::stopDeviceIO(){
                                      //    If you insist on killing a thread that may be talking to the LabJack you should reset the USB bus.
     }
 
-	setActive(false);
+	//setActive(false);   // MH - by leaving active == true, we can use the Reward window to schedule pulses when trials are not running
 	deviceIOrunning = false;
 	return true;
 }
