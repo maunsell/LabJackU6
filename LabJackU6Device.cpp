@@ -170,22 +170,27 @@ void LabJackU6Device::pulseDOLow() {
     if (ljU6WriteDI(ljHandle, LJU6_REWARD_FIO, 0) == false) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing digital output low; device likely to not work from here on");
     }
+	
 }
     
 void LabJackU6Device::solenoidDO(bool state) {
     // Takes and releases driver lock
+    
     boost::mutex::scoped_lock lock(ljU6DriverLock);
 
     if (eDO(ljHandle, LJU6_LEVERSOLENOID_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing lever solenoid state; device likely to be broken (state %d)", state);
     }
+	 
 }
 	
 
 bool LabJackU6Device::readDI()
 // Takes the driver lock and releases it
 {
-    long int state;
+    
+	long int state = 0L;
+	
 	shared_ptr <Clock> clock = Clock::instance();
 	static bool lastState = 0xff;
 	static long unsigned slowCount = 0;
@@ -226,18 +231,22 @@ bool LabJackU6Device::readDI()
 		lastDITransitionTimeUS = clock->getCurrentTimeUS();
 	}
     //lock.unlock();  //printf("unlock readDI\n"); fflush(stdout);
+	
 	return(state);
 }
 
 // External function for scheduling
 
-void *update_lever(const shared_ptr<LabJackU6Device> &gp){
+void *update_lever(const weak_ptr<LabJackU6Device> &gp){
 	shared_ptr <Clock> clock = Clock::instance();
-
-	gp->updateSwitch();                 
+	shared_ptr <LabJackU6Device> sp = gp.lock();
+	sp->updateSwitch();
+	sp.reset();
+    return NULL;
 }
 
 bool LabJackU6Device::updateSwitch() {	
+	
 	
 	bool switchValue = readDI();
 
@@ -393,11 +402,12 @@ bool LabJackU6Device::startDeviceIO(){
                                              (MWTime)0, 
                                              LJU6_DITASK_UPDATE_PERIOD_US, 
                                              M_REPEAT_INDEFINITELY, 
-                                             boost::bind(update_lever, this_one),
+                                             boost::bind(update_lever, weak_ptr<LabJackU6Device>(this_one)),
                                              M_DEFAULT_IODEVICE_PRIORITY,
                                              LJU6_DITASK_WARN_SLOP_US,
                                              LJU6_DITASK_FAIL_SLOP_US,                                             
                                              M_MISSED_EXECUTION_DROP);
+	
 	//schedule_nodes.push_back(pollScheduleNode);       
 //	schedule_nodes_lock.unlock();		// Seems to be no longer supported in MWorks
 
