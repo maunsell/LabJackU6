@@ -170,6 +170,8 @@ void LabJackU6Device::pulseDOLow() {
     if (ljU6WriteDI(ljHandle, LJU6_REWARD_FIO, 0) == false) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing digital output low; device likely to not work from here on");
     }
+	// set juice variable low
+	pulseDurationMS->setValue(Datum((long)0));
 	
 }
     
