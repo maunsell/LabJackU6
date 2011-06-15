@@ -20,6 +20,7 @@
 #define kDIDeadtimeUS	5000	
 #define kDIReportTimeUS	5000
 
+#define LJU6_LASERTRIGGER_FIO 3
 #define LJU6_LEVERSOLENOID_FIO 2
 #define LJU6_LEVERPRESS_FIO 1
 #define LJU6_REWARD_FIO     0
@@ -52,7 +53,8 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
                                  const boost::shared_ptr <Variable> _pulseDurationMS,
                                  const boost::shared_ptr <Variable> _pulseOn,
                                  const boost::shared_ptr <Variable> _leverPress, 
-                                 const boost::shared_ptr <Variable> _leverSolenoid)
+                                 const boost::shared_ptr <Variable> _leverSolenoid, 
+								 const boost::shared_ptr <Variable> _laserTrigger)
 {
 	if (VERBOSE_IO_DEVICE >= 2) {
 		mprintf("LabJackU6Device: constructor");
@@ -62,6 +64,7 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
 	pulseOn = _pulseOn;
 	leverPress = _leverPress;
     leverSolenoid = _leverSolenoid;
+	laserTrigger = _laserTrigger;
 	deviceIOrunning = false;
     ljHandle = NULL;
     lastLeverPressValue = -1;  // -1 means always report first value
@@ -185,7 +188,18 @@ void LabJackU6Device::solenoidDO(bool state) {
     }
 	 
 }
+
+void LabJackU6Device::laserDO(bool state) {
+    // Takes and releases driver lock
+    
+    boost::mutex::scoped_lock lock(ljU6DriverLock);
 	
+    if (eDO(ljHandle, LJU6_LASERTRIGGER_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing laser trigger state; device likely to be broken (state %d)", state);
+    }
+	
+}
+
 
 bool LabJackU6Device::readDI()
 // Takes the driver lock and releases it
@@ -458,6 +472,7 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	const char *PULSE_ON = "pulse_on";
 	const char *LEVER_PRESS = "lever_press";
 	const char *LEVER_SOLENOID = "lever_solenoid";
+	const char *LASER_TRIGGER = "laser_trigger";
 	
 	REQUIRE_ATTRIBUTES(parameters, PULSE_DURATION);
 	
@@ -496,31 +511,45 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 					   LEVER_SOLENOID, 
 					   parameters.find(LEVER_SOLENOID)->second);
 	}
+
+	boost::shared_ptr<mw::Variable> laser_trigger = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
+	if(parameters.find(LASER_TRIGGER) != parameters.end()) {
+		laser_trigger = reg->getVariable(parameters.find(LASER_TRIGGER)->second);	
+		checkAttribute(laser_trigger,
+					   parameters.find("reference_id")->second, 
+					   LASER_TRIGGER, 
+					   parameters.find(LASER_TRIGGER)->second);
+	}
 	
 	boost::shared_ptr <mw::Scheduler> scheduler = mw::Scheduler::instance(true);
 	
 	boost::shared_ptr <mw::Component> new_daq = boost::shared_ptr<mw::Component>(new LabJackU6Device(scheduler,
-																								  pulse_duration, 
-																								  pulse_on, 
-                                                                                                     lever_press, 
-                                                                                                     lever_solenoid));
+																									 pulse_duration, 
+																									 pulse_on, 
+                                                                                                     lever_press,	
+                                                                                                     lever_solenoid,
+																									 laser_trigger));
 	return new_daq;
 }	
 
 void LabJackU6Device::variableSetup() {
-	
-	shared_ptr<Variable> doReward = this->pulseOn;
+
 	weak_ptr<LabJackU6Device> weak_self_ref(getSelfPtr<LabJackU6Device>());
+
+	shared_ptr<Variable> doReward = this->pulseOn;
 	shared_ptr<VariableNotification> notif(new LabJackU6DeviceOutputNotification(weak_self_ref));
 	doReward->addNotification(notif);
     
-// leverSolenoid
-    
+	// leverSolenoid
 	shared_ptr<Variable> doLS = this->leverSolenoid;
-    weak_ptr<LabJackU6Device> weak_self_ref2(getSelfPtr<LabJackU6Device>());
 	shared_ptr<VariableNotification> notif2(new LabJackU6DeviceLSNotification(weak_self_ref));
 	doLS->addNotification(notif2);
-    
+
+	// laserTrigger
+	shared_ptr<Variable> doLT = this->laserTrigger;
+	shared_ptr<VariableNotification> notif3(new LabJackU6DeviceLTNotification(weak_self_ref));
+	doLT->addNotification(notif3);
+	
 	connected = true;	
 }
 

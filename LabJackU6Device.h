@@ -51,6 +51,7 @@ protected:
 	boost::shared_ptr <Variable> pulseOn;
 	boost::shared_ptr <Variable> leverPress;
 	boost::shared_ptr <Variable> leverSolenoid;
+	boost::shared_ptr <Variable> laserTrigger;
 
 	//MWTime update_period;  MH this is now hardcoded, users should not change this
 	
@@ -70,7 +71,8 @@ public:
 					const boost::shared_ptr <Variable> _pulseDurationMS,
 					const boost::shared_ptr <Variable> _pulseOn,
                     const boost::shared_ptr <Variable> _leverPress,
-                    const boost::shared_ptr <Variable> _leverSolenoid);
+                    const boost::shared_ptr <Variable> _leverSolenoid,
+					const boost::shared_ptr <Variable> _laserTrigger);
 	
 	~LabJackU6Device();
 	LabJackU6Device(const LabJackU6Device& copy);
@@ -92,6 +94,7 @@ public:
 	void pulseDOHigh(int pulseLengthUS);
 	void pulseDOLow();
 	void solenoidDO(bool state);
+	void laserDO(bool state);
 	
 	virtual void dispense(Datum data){
 		if(getActive()){
@@ -111,6 +114,13 @@ public:
 		if (getActive()) {
 			bool solenoidState = (bool)data;
 			this->solenoidDO(solenoidState);
+		}
+	}
+	
+	virtual void setLaserTrigger(Datum data) {
+		if (getActive()) {
+			bool laserState = (bool)data;
+			this->laserDO(laserState);
 		}
 	}
     
@@ -171,6 +181,20 @@ public:
 		shared_daq->setSolenoid(data);
 	}
 };
+
+class LabJackU6DeviceLTNotification : public VariableNotification {
+		
+	protected:
+		weak_ptr<LabJackU6Device> daq;
+	public:
+		LabJackU6DeviceLTNotification(weak_ptr<LabJackU6Device> _daq){
+			daq = _daq;
+		}
+		virtual void notify(const Datum& data, MWTime timeUS){
+			shared_ptr<LabJackU6Device> shared_daq(daq);
+			shared_daq->setLaserTrigger(data);
+		}
+	};
 	
 	
 } // namespace mw
