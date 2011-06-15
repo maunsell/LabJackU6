@@ -52,6 +52,7 @@ protected:
 	boost::shared_ptr <Variable> leverPress;
 	boost::shared_ptr <Variable> leverSolenoid;
 	boost::shared_ptr <Variable> laserTrigger;
+	boost::shared_ptr <Variable> strobedDigitalWord;
 
 	//MWTime update_period;  MH this is now hardcoded, users should not change this
 	
@@ -64,6 +65,7 @@ protected:
 	bool ljU6ConfigPorts(HANDLE Handle);
 	bool ljU6ReadDI(HANDLE Handle, long Channel, long* State);
 	bool ljU6WriteDI(HANDLE Handle, long Channel, long State);
+	bool ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord);
     
 public:
 	
@@ -72,7 +74,8 @@ public:
 					const boost::shared_ptr <Variable> _pulseOn,
                     const boost::shared_ptr <Variable> _leverPress,
                     const boost::shared_ptr <Variable> _leverSolenoid,
-					const boost::shared_ptr <Variable> _laserTrigger);
+					const boost::shared_ptr <Variable> _laserTrigger, 
+					const boost::shared_ptr <Variable> _strobedDigitalWord);
 	
 	~LabJackU6Device();
 	LabJackU6Device(const LabJackU6Device& copy);
@@ -95,6 +98,7 @@ public:
 	void pulseDOLow();
 	void solenoidDO(bool state);
 	void laserDO(bool state);
+	void strobedDigitalWordDO(unsigned int digWord);
 	
 	virtual void dispense(Datum data){
 		if(getActive()){
@@ -123,7 +127,14 @@ public:
 			this->laserDO(laserState);
 		}
 	}
-    
+
+	virtual void setStrobedDigitalWord(Datum data) {
+		if (getActive()) {
+			unsigned int digWord = (int)data;
+			this->strobedDigitalWordDO(digWord);
+		}
+	}
+	
 	virtual void setActive(bool _active){
 		boost::mutex::scoped_lock active_lock(active_mutex);
 		active = _active;
@@ -193,6 +204,20 @@ class LabJackU6DeviceLTNotification : public VariableNotification {
 		virtual void notify(const Datum& data, MWTime timeUS){
 			shared_ptr<LabJackU6Device> shared_daq(daq);
 			shared_daq->setLaserTrigger(data);
+		}
+	};
+
+class LabJackU6DeviceSDWNotification : public VariableNotification {
+		
+	protected:
+		weak_ptr<LabJackU6Device> daq;
+	public:
+		LabJackU6DeviceSDWNotification(weak_ptr<LabJackU6Device> _daq){
+			daq = _daq;
+		}
+		virtual void notify(const Datum& data, MWTime timeUS){
+			shared_ptr<LabJackU6Device> shared_daq(daq);
+			shared_daq->setStrobedDigitalWord(data);
 		}
 	};
 	

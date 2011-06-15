@@ -20,10 +20,12 @@
 #define kDIDeadtimeUS	5000	
 #define kDIReportTimeUS	5000
 
+//#define LJU6_STROBE_FIO       7   // Use a 12-bit word; EIO0-7, CIO0-2, all encoded below
 #define LJU6_LASERTRIGGER_FIO 3
 #define LJU6_LEVERSOLENOID_FIO 2
 #define LJU6_LEVERPRESS_FIO 1
 #define LJU6_REWARD_FIO     0
+
 #define LJU6_EMPIRICAL_DO_LATENCY_MS 1   // average when plugged into a highspeed hub.  About 8ms otherwise
 
 using namespace mw;
@@ -54,7 +56,8 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
                                  const boost::shared_ptr <Variable> _pulseOn,
                                  const boost::shared_ptr <Variable> _leverPress, 
                                  const boost::shared_ptr <Variable> _leverSolenoid, 
-								 const boost::shared_ptr <Variable> _laserTrigger)
+								 const boost::shared_ptr <Variable> _laserTrigger, 
+								 const boost::shared_ptr <Variable> _strobedDigitalWord)
 {
 	if (VERBOSE_IO_DEVICE >= 2) {
 		mprintf("LabJackU6Device: constructor");
@@ -65,6 +68,7 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
 	leverPress = _leverPress;
     leverSolenoid = _leverSolenoid;
 	laserTrigger = _laserTrigger;
+	strobedDigitalWord = _strobedDigitalWord;
 	deviceIOrunning = false;
     ljHandle = NULL;
     lastLeverPressValue = -1;  // -1 means always report first value
@@ -197,6 +201,15 @@ void LabJackU6Device::laserDO(bool state) {
     if (eDO(ljHandle, LJU6_LASERTRIGGER_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing laser trigger state; device likely to be broken (state %d)", state);
     }
+	
+}
+
+void LabJackU6Device::strobedDigitalWordDO(unsigned int digWord) {
+    // Takes and releases driver lock
+    
+    boost::mutex::scoped_lock lock(ljU6DriverLock);
+	
+    LabJackU6Device::ljU6WriteStrobedWord(ljHandle, digWord); // error checking done inside here; will call merror
 	
 }
 
@@ -473,6 +486,7 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	const char *LEVER_PRESS = "lever_press";
 	const char *LEVER_SOLENOID = "lever_solenoid";
 	const char *LASER_TRIGGER = "laser_trigger";
+	const char *STROBED_DIGITAL_WORD = "strobed_digital_word";
 	
 	REQUIRE_ATTRIBUTES(parameters, PULSE_DURATION);
 	
@@ -520,6 +534,16 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 					   LASER_TRIGGER, 
 					   parameters.find(LASER_TRIGGER)->second);
 	}
+
+	boost::shared_ptr<mw::Variable> strobed_digital_word = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	if(parameters.find(STROBED_DIGITAL_WORD) != parameters.end()) {
+		strobed_digital_word = reg->getVariable(parameters.find(STROBED_DIGITAL_WORD)->second);	
+		checkAttribute(strobed_digital_word,
+					   parameters.find("reference_id")->second, 
+					   STROBED_DIGITAL_WORD, 
+					   parameters.find(STROBED_DIGITAL_WORD)->second);
+	}
+	
 	
 	boost::shared_ptr <mw::Scheduler> scheduler = mw::Scheduler::instance(true);
 	
@@ -528,7 +552,8 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 																									 pulse_on, 
                                                                                                      lever_press,	
                                                                                                      lever_solenoid,
-																									 laser_trigger));
+																									 laser_trigger,
+																									 strobed_digital_word));
 	return new_daq;
 }	
 
@@ -549,6 +574,11 @@ void LabJackU6Device::variableSetup() {
 	shared_ptr<Variable> doLT = this->laserTrigger;
 	shared_ptr<VariableNotification> notif3(new LabJackU6DeviceLTNotification(weak_self_ref));
 	doLT->addNotification(notif3);
+	
+	// strobedDigitalWord
+	shared_ptr<Variable> doSDW = this->strobedDigitalWord;
+	shared_ptr<VariableNotification> notif4(new LabJackU6DeviceSDWNotification(weak_self_ref));
+	doSDW->addNotification(notif4);
 	
 	connected = true;	
 }
@@ -572,22 +602,36 @@ void LabJackU6Device::detachPhysicalDevice() {
 
 bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     /// set up IO ports
-    uint8 sendDataBuff[6]; // recDataBuff[1];
-    uint8 Errorcode, ErrorFrame;
+    uint8 sendDataBuff[7]; // recDataBuff[1];
+	uint8 Errorcode, ErrorFrame;
+	
 
-    // Don't configure the leversolenoid port, just use eDO
+    // Don't need to configure the laser or leversolenoid port, just use eDO
     
-    // setup one to be output, one input, and set output to zero
-    sendDataBuff[0] = 13;       //IOType is BitDirWrite
-    sendDataBuff[1] = (LJU6_LEVERPRESS_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
-    sendDataBuff[2] = 13;       //IOType is BitDirWrite
-    sendDataBuff[3] = LJU6_REWARD_FIO & 0x0f | (1 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
-    sendDataBuff[4] = 11;             //IOType is BitStateWrite
-    sendDataBuff[5] = (LJU6_REWARD_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + State (bit 7)
+    ////setup one to be output, one input, and set output to zero
+    //sendDataBuff[0] = 13;       //IOType is BitDirWrite
+    //sendDataBuff[1] = (LJU6_LEVERPRESS_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
+    //sendDataBuff[2] = 13;       //IOType is BitDirWrite
+    //sendDataBuff[3] = LJU6_REWARD_FIO & 0x0f | (1 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
+    //sendDataBuff[4] = 11;             //IOType is BitStateWrite
+    //sendDataBuff[5] = (LJU6_REWARD_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + State (bit 7)
+	
+	sendDataBuff[0] = 29;		// PortDirWrite
+	sendDataBuff[1] = ( (0x01 << LJU6_REWARD_FIO) | (0x01 << LJU6_LEVERPRESS_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
+					   | (0x01 << LJU6_LASERTRIGGER_FIO) | (0x01 << 7) ); 
+								// FIO mask.  Note pin 7 is hardcoded to be the strobe.
+	sendDataBuff[2] = 0xff;		// EIO mask
+	sendDataBuff[3] = 0x0f;		// CIO mask
+	sendDataBuff[4] = ( (0x01 << LJU6_REWARD_FIO) | (0x00 << LJU6_LEVERPRESS_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
+					   | (0x01 << LJU6_LASERTRIGGER_FIO) | (0x01 << 7) ); 
+								// FIO dir data: 1 is output 0 is input (only input now is leverpress)
+	sendDataBuff[5] = 0xff;		// EIO dir: all output
+	sendDataBuff[6] = 0x0f;		// CIO dir: all output (only 4 bits)
+	
 
     //printf("*****************Output %x %x %x %x\n", sendDataBuff[0], sendDataBuff[1], sendDataBuff[2], sendDataBuff[3]);
     
-    if(ehFeedback(Handle, sendDataBuff, 6, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
+    if(ehFeedback(Handle, sendDataBuff, 7, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
         return false;  
     }
@@ -640,6 +684,56 @@ bool LabJackU6Device::ljU6WriteDI(HANDLE Handle, long Channel, long State) {
     sendDataBuff[1] = Channel + 128*((State > 0) ? 1 : 0);  //IONumber(bits 0-4) + State (bit 7)
 
     if(ehFeedback(Handle, sendDataBuff, 2, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
+        return false;
+    }
+    if(Errorcode) {
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
+        return false;
+    }
+    return true;
+}
+
+bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
+	
+	uint8 outEioBits = inWord & 0xff;
+	uint8 outCioBits = (inWord & 0xf00) >> 8;
+	
+    uint8 sendDataBuff[20]; 
+    uint8 Errorcode, ErrorFrame;
+
+	if (inWord > 0xfff) {
+		merror(M_IODEVICE_MESSAGE_DOMAIN, "error writing strobed word; value is larger than 12 bits (nothing written)");
+		return false;
+	}
+		
+	
+    sendDataBuff[0] = 27;			// PortStateWrite, 7 bytes total
+	sendDataBuff[1] = 0x00;			// FIO: don't update
+	sendDataBuff[2] = 0xff;			// EIO: update
+	sendDataBuff[3] = 0x0f;			// CIO: update
+	sendDataBuff[4] = 0x00;			// FIO: data
+	sendDataBuff[5] = outEioBits;	// EIO: data
+	sendDataBuff[6] = outCioBits;	// CIO: data
+	
+	sendDataBuff[7] = 5;			// WaitShort
+	sendDataBuff[8] = 1;			// Time(*128us)
+	
+	sendDataBuff[9]  = 11;			// BitStateWrite
+	sendDataBuff[10] = 7 | 0x80;	// first 4 bits: port # (FIO7); last bit, state
+	
+	sendDataBuff[11] = 5;			// WaitShort
+	sendDataBuff[12] = 1;			// Time(*128us)
+	
+    sendDataBuff[13] = 27;			// PortStateWrite, 7 bytes total
+	sendDataBuff[14] = 0x80;		// FIO: update pin 7
+	sendDataBuff[15] = 0xff;		// EIO: update
+	sendDataBuff[16] = 0x0f;		// CIO: update
+	sendDataBuff[17] = 0x00;		// FIO: data
+	sendDataBuff[18] = 0x00;		// EIO: data
+	sendDataBuff[19] = 0x00;		// CIO: data
+
+    if(ehFeedback(Handle, sendDataBuff, 20, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
         return false;
     }
