@@ -366,12 +366,13 @@ bool LabJackU6Device::setupU6PortsAndRestartIfDead() {
         // assume dead
         
         // Force a USB re-enumerate, and reconnect
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "LJU6 found dead!!!  Restarting.  bug: should track this down with LabJack Co.");
-        libusb_reset_device((libusb_device_handle *)ljHandle);
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "LJU6 found dead, restarting.  (bug if not on restart)");
+
+        libusb_reset_device((libusb_device_handle *)ljHandle); // patched usb library uses ReEnumerate
         closeUSBConnection(ljHandle);
-        //sleep(0.25); // histed: MaunsellMouse1 - 0.1s not enough, 0.2 works, add a little padding
-        sleep(2.0); // histed: Testing!
-        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "Sleeping for 250ms after restarting LJU6");  
+
+        sleep(2); // histed: MaunsellMouse1 - 0.1s not enough, 0.2 works, add padding
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "Sleeping for 2 s after restarting LJU6");
     
         if( (ljHandle = openUSBConnection(-1)) == NULL) {
             merror(M_IODEVICE_MESSAGE_DOMAIN, "Error: could not reopen USB U6 device after reset; U6 will not work now.");
@@ -380,7 +381,7 @@ bool LabJackU6Device::setupU6PortsAndRestartIfDead() {
     
         // Redo port setup
         if (!ljU6ConfigPorts(ljHandle)) {
-            merror(M_IODEVICE_MESSAGE_DOMAIN, "Error: configuring U6 after restart, U6 will not work now\n");
+            merror(M_IODEVICE_MESSAGE_DOMAIN, "Error: configuring U6 after restart, U6 will not work now.  Check for patched version of libusb with reenumerate call.\n");
             return false;  // no cleanup needed
         }
     }
@@ -752,6 +753,3 @@ bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
 }
 
 
-    
-    
-    
