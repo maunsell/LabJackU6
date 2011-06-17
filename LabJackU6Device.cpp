@@ -589,7 +589,8 @@ void LabJackU6Device::detachPhysicalDevice() {
 	}
     assert(connected == true); // "Was not connected on entry to detachPhysicalDevice");
 		
-    boost::mutex::scoped_lock lock(ljU6DriverLock);  printf("lock detachP\n");
+    boost::mutex::scoped_lock lock(ljU6DriverLock);  
+	//printf("lock in detachP\n");
     assert(ljHandle != NULL); // "Device handle is NULL before attempt to disconnect");
     
     closeUSBConnection(ljHandle);
@@ -640,11 +641,17 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
         return false;
     }
 
+	// set output ports to desired state here
     if (eDO(Handle, LJU6_LEVERSOLENOID_FIO, 0) < 0) {  // set to low, automatically configures too
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
         return false;
     }
-
+    if (eDO(Handle, LJU6_REWARD_FIO, 0) < 0) {  // set to low, automatically configures too
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
+        return false;
+    }
+	
+	
     return true;
 
     // cleanup now done externally to this function

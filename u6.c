@@ -1200,7 +1200,7 @@ long ehFeedback(HANDLE hDevice, uint8 *inIOTypesDataBuff, long inIOTypesDataSize
         if(sendChars == 0)
             printf("ehFeedback error : write failed\n");
         else {
-            printf("ehFeedback error : did not write all of the buffer. sendChars = %d. errno = %d.\n", sendChars, errno);
+			printf("ehFeedback error : did not write all of the buffer. sendChars=%d. errno = %d. Buffer follows:\n", sendChars, errno);
             int iB; 
             for (iB=0; iB<sendDWSize+commandBytes; iB++) {
                 printf("%x ", sendBuff[iB]);
