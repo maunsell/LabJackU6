@@ -634,21 +634,21 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     //printf("*****************Output %x %x %x %x\n", sendDataBuff[0], sendDataBuff[1], sendDataBuff[2], sendDataBuff[3]);
     
     if(ehFeedback(Handle, sendDataBuff, 7, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
         return false;  
     }
     if(Errorcode) {
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
         return false;
     }
 
 	// set output ports to desired state here
     if (eDO(Handle, LJU6_LEVERSOLENOID_FIO, 0) < 0) {  // set to low, automatically configures too
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
         return false;
     }
     if (eDO(Handle, LJU6_REWARD_FIO, 0) < 0) {  // set to low, automatically configures too
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
         return false;
     }
 	
