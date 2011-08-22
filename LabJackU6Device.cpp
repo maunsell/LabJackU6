@@ -663,13 +663,13 @@ bool LabJackU6Device::ljU6ReadDI(HANDLE Handle, long Channel, long* State) {
     // returns: 1 on success, 0 on error
     // output written to State
     
+	/*
     uint8 sendDataBuff[4], recDataBuff[1];
     uint8 Errorcode, ErrorFrame;
 
     sendDataBuff[0] = 10;       //IOType is BitStateRead
     sendDataBuff[1] = Channel;  //IONumber
     
-    //printf("entering ljU6ReadDI\n"); fflush(stdout);
     if(ehFeedback(Handle, sendDataBuff, 2, &Errorcode, &ErrorFrame, recDataBuff, 1) < 0) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
         return false;
@@ -679,7 +679,12 @@ bool LabJackU6Device::ljU6ReadDI(HANDLE Handle, long Channel, long* State) {
         return false;
     }
     
-    *State = (long int)recDataBuff[0];
+    State = (long int)recDataBuff[0];
+	 */
+	if (eDI(Handle, Channel, State) < 0) {  // val is written to State
+		return false;
+	}
+	
     return true;
 }
 
@@ -715,7 +720,7 @@ bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
 		return false;
 	}
 		
-	
+	/*
     sendDataBuff[0] = 27;			// PortStateWrite, 7 bytes total
 	sendDataBuff[1] = 0x00;			// FIO: don't update
 	sendDataBuff[2] = 0xff;			// EIO: update
@@ -749,6 +754,7 @@ bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
         return false;
     }
+	*/
     return true;
 }
 
