@@ -28,6 +28,9 @@
 
 #define LJU6_EMPIRICAL_DO_LATENCY_MS 1   // average when plugged into a highspeed hub.  About 8ms otherwise
 
+static const char ljPortDir[3] = { 0xfd, 0xff, 0xff };   // 0-7 FIO, 8-15 EIO, 16-19 CIO; 0 input, 1 output
+													     // 0xfd is 0x1111 1101
+
 using namespace mw;
 
 /* Notes to self MH 100422
@@ -712,7 +715,7 @@ bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
 	uint8 outEioBits = inWord & 0xff;
 	uint8 outCioBits = (inWord & 0xf00) >> 8;
 	
-    uint8 sendDataBuff[20]; 
+    uint8 sendDataBuff[27]; 
     uint8 Errorcode, ErrorFrame;
 
 	if (inWord > 0xfff) {
@@ -720,7 +723,8 @@ bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
 		return false;
 	}
 		
-	/*
+	
+	
     sendDataBuff[0] = 27;			// PortStateWrite, 7 bytes total
 	sendDataBuff[1] = 0x00;			// FIO: don't update
 	sendDataBuff[2] = 0xff;			// EIO: update
@@ -739,14 +743,23 @@ bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
 	sendDataBuff[12] = 1;			// Time(*128us)
 	
     sendDataBuff[13] = 27;			// PortStateWrite, 7 bytes total
-	sendDataBuff[14] = 0x80;		// FIO: update pin 7
+	sendDataBuff[14] = 0x80;	//0x80	// FIO: update pin 7
 	sendDataBuff[15] = 0xff;		// EIO: update
 	sendDataBuff[16] = 0x0f;		// CIO: update
 	sendDataBuff[17] = 0x00;		// FIO: data
 	sendDataBuff[18] = 0x00;		// EIO: data
 	sendDataBuff[19] = 0x00;		// CIO: data
+	
+	sendDataBuff[20] = 29;			// PortDirWrite - for some reason the above seems to reset the FIO input/output state
+	sendDataBuff[21] = 0xff;		//  FIO: update
+	sendDataBuff[22] = 0xff;		//  EIO: update
+	sendDataBuff[23] = 0xff;		//  CIO: update
+	sendDataBuff[24] = ljPortDir[0];//  FIO hardcoded above
+	sendDataBuff[25] = ljPortDir[1];//  EIO hardcoded above
+	sendDataBuff[26] = ljPortDir[2];//  CIO hardcoded above
 
-    if(ehFeedback(Handle, sendDataBuff, 20, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
+
+    if(ehFeedback(Handle, sendDataBuff, 27, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
         return false;
     }
@@ -754,7 +767,7 @@ bool LabJackU6Device::ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
         return false;
     }
-	*/
+	
     return true;
 }
 
