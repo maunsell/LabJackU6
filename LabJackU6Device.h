@@ -37,12 +37,10 @@ protected:
 	
 	bool						connected;
 
-	MWTime						lastSoloLeverTransitionTimeUS;
-	MWTime						lastPairLever1TransitionTimeUS;
-	MWTime						lastPairLever2TransitionTimeUS;
-	int lastSoloLeverPressValue;	
-	int lastPairLever1PressValue;	
-	int lastPairLever2PressValue;	
+	MWTime						lastLever1TransitionTimeUS;
+	MWTime						lastLever2TransitionTimeUS;
+	int lastLever1Value;	
+	int lastLever2Value;	
 	
 	boost::shared_ptr <Scheduler> scheduler;
 	shared_ptr<ScheduleTask>	pulseScheduleNode;
@@ -56,10 +54,10 @@ protected:
     
 	boost::shared_ptr <Variable> pulseDurationMS;
 	boost::shared_ptr <Variable> pulseOn;
-	boost::shared_ptr <Variable> soloLever;
-	boost::shared_ptr <Variable> pairLever1;
-	boost::shared_ptr <Variable> pairLever2;
-	boost::shared_ptr <Variable> leverSolenoid;
+	boost::shared_ptr <Variable> lever1;
+	boost::shared_ptr <Variable> lever2;
+	boost::shared_ptr <Variable> lever1Solenoid;
+	boost::shared_ptr <Variable> lever2Solenoid;
 	boost::shared_ptr <Variable> laserTrigger;
 	boost::shared_ptr <Variable> strobedDigitalWord;
 
@@ -82,10 +80,10 @@ public:
 	LabJackU6Device(const boost::shared_ptr <Scheduler> &a_scheduler,
 					const boost::shared_ptr <Variable> _pulseDurationMS,
 					const boost::shared_ptr <Variable> _pulseOn,
-					const boost::shared_ptr <Variable> _soloLever, 
-					const boost::shared_ptr <Variable> _leverSolenoid, 
-					const boost::shared_ptr <Variable> _pairLever1, 									
-					const boost::shared_ptr <Variable> _pairLever2, 									
+					const boost::shared_ptr <Variable> _lever1Solenoid, 
+					const boost::shared_ptr <Variable> _lever2Solenoid, 
+					const boost::shared_ptr <Variable> _lever1, 									
+					const boost::shared_ptr <Variable> _lever2, 									
 					const boost::shared_ptr <Variable> _laserTrigger, 
 					const boost::shared_ptr <Variable> _strobedDigitalWord);	
 	~LabJackU6Device();
@@ -98,16 +96,17 @@ public:
 	virtual bool startDeviceIO();
 	virtual bool stopDeviceIO();		
 	
-	virtual bool updateSwitch();
+	virtual bool pollAllDI();
 	void detachPhysicalDevice();
 	void variableSetup();
 	bool setupU6PortsAndRestartIfDead();
 	
 	
-	bool readDI();
+	bool readDI(bool *outLever1, bool *outLever2);
 	void pulseDOHigh(int pulseLengthUS);
 	void pulseDOLow();
-	void solenoidDO(bool state);
+	void lever1SolenoidDO(bool state);
+    void lever2SolenoidDO(bool state);
 	void laserDO(bool state);
 	void strobedDigitalWordDO(unsigned int digWord);
 	
@@ -125,10 +124,16 @@ public:
 			}
 		}
 	}
-	virtual void setSolenoid(Datum data) {   
+	virtual void setLever1Solenoid(Datum data) {   
 		if (getActive()) {
-			bool solenoidState = (bool)data;
-			this->solenoidDO(solenoidState);
+			bool lever1SolenoidState = (bool)data;
+			this->lever1SolenoidDO(lever1SolenoidState);
+		}
+	}
+	virtual void setLever2Solenoid(Datum data) {   
+		if (getActive()) {
+			bool lever2SolenoidState = (bool)data;
+			this->lever2SolenoidDO(lever2SolenoidState);
 		}
 	}
 	
@@ -190,20 +195,36 @@ class LabJackU6DeviceOutputNotification : public VariableNotification {
 		}
 };
 
-class LabJackU6DeviceLSNotification : public VariableNotification {
+class LabJackU6DeviceL1SNotification : public VariableNotification {
 
 protected:
 	weak_ptr<LabJackU6Device> daq;
 public:
-	LabJackU6DeviceLSNotification(weak_ptr<LabJackU6Device> _daq){
+	LabJackU6DeviceL1SNotification(weak_ptr<LabJackU6Device> _daq){
 		daq = _daq;
 	}
 	virtual void notify(const Datum& data, MWTime timeUS){
 		shared_ptr<LabJackU6Device> shared_daq(daq);
-		shared_daq->setSolenoid(data);
+		shared_daq->setLever1Solenoid(data);
 	}
 };
 
+class LabJackU6DeviceL2SNotification : public VariableNotification {
+		
+protected:
+	weak_ptr<LabJackU6Device> daq;
+public:
+	LabJackU6DeviceL2SNotification(weak_ptr<LabJackU6Device> _daq){
+		daq = _daq;
+	}
+	virtual void notify(const Datum& data, MWTime timeUS){
+		shared_ptr<LabJackU6Device> shared_daq(daq);
+		shared_daq->setLever2Solenoid(data);
+	}
+};
+	
+	
+	
 class LabJackU6DeviceLTNotification : public VariableNotification {
 		
 	protected:

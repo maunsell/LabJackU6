@@ -1,8 +1,9 @@
 /*
  *  LabJack U6 Plugin for MWorks
  *
- *  Created by Mark Histed on 4/21/2010
+ *  Created by Mark Histed on 100421
  *    (based on Nidaq plugin code by Jon Hendry and John Maunsell)
+ *  Revised for two levers histed 120708
  *
  */
 
@@ -21,12 +22,12 @@
 #define kDIReportTimeUS	5000
 
 //#define LJU6_STROBE_FIO       7   // Use a 12-bit word; EIO0-7, CIO0-2, all encoded below
-#define LJU6_LASERTRIGGER_FIO 3
-#define LJU6_LEVERSOLENOID_FIO 2
-#define LJU6_REWARD_FIO     0
-#define LJU6_SOLOLEVER_FIO 1
-#define LJU6_PAIRLEVER1_FIO 5
-#define LJU6_PAIRLEVER2_FIO 6
+#define LJU6_LASERTRIGGER_FIO   3
+#define LJU6_LEVER1SOLENOID_FIO 2
+#define LJU6_LEVER2SOLENOID_FIO 5
+#define LJU6_REWARD_FIO         0
+#define LJU6_LEVER1_FIO         1
+#define LJU6_LEVER2_FIO         4
 
 
 #define LJU6_EMPIRICAL_DO_LATENCY_MS 1   // average when plugged into a highspeed hub.  About 8ms otherwise
@@ -65,10 +66,10 @@ void debounce_bit(unsigned int *thisState, unsigned int *lastState, MWTime *last
 LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_scheduler,
                                  const boost::shared_ptr <Variable> _pulseDurationMS,
                                  const boost::shared_ptr <Variable> _pulseOn,
-                                 const boost::shared_ptr <Variable> _soloLever, 
-                                 const boost::shared_ptr <Variable> _leverSolenoid, 
-								 const boost::shared_ptr <Variable> _pairLever1, 									
-								 const boost::shared_ptr <Variable> _pairLever2, 									
+                                 const boost::shared_ptr <Variable> _lever1Solenoid,
+                                 const boost::shared_ptr <Variable> _lever2Solenoid,                                  
+								 const boost::shared_ptr <Variable> _lever1, 									
+								 const boost::shared_ptr <Variable> _lever2, 									
 								 const boost::shared_ptr <Variable> _laserTrigger, 
 								 const boost::shared_ptr <Variable> _strobedDigitalWord)
 {
@@ -78,20 +79,18 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
 	scheduler = a_scheduler;
 	pulseDurationMS = _pulseDurationMS;
 	pulseOn = _pulseOn;
-	soloLever = _soloLever;
-	pairLever1 = _pairLever1;
-	pairLever2 = _pairLever2;
-    leverSolenoid = _leverSolenoid;
+	lever1 = _lever1;
+	lever2 = _lever2;
+    lever1Solenoid = _lever1Solenoid;
+    lever2Solenoid = _lever2Solenoid;
 	laserTrigger = _laserTrigger;
 	strobedDigitalWord = _strobedDigitalWord;
 	deviceIOrunning = false;
     ljHandle = NULL;
-    lastSoloLeverPressValue = -1;  // -1 means always report first value
-	lastPairLever1PressValue = -1;  // -1 means always report first value
-	lastPairLever2PressValue = -1;  // -1 means always report first value
-    lastSoloLeverTransitionTimeUS = 0; 
-	lastPairLever1TransitionTimeUS = 0; 
-	lastPairLever2TransitionTimeUS = 0;
+	lastLever1Value = -1;  // -1 means always report first value
+	lastLever2Value = -1;  // -1 means always report first value
+	lastLever1TransitionTimeUS = 0; 
+	lastLever2TransitionTimeUS = 0;
 }
 
 
@@ -201,16 +200,27 @@ void LabJackU6Device::pulseDOLow() {
 	
 }
     
-void LabJackU6Device::solenoidDO(bool state) {
+void LabJackU6Device::lever1SolenoidDO(bool state) {
     // Takes and releases driver lock
     
     boost::mutex::scoped_lock lock(ljU6DriverLock);
 
-    if (eDO(ljHandle, LJU6_LEVERSOLENOID_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
+    if (eDO(ljHandle, LJU6_LEVER1SOLENOID_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing lever solenoid state; device likely to be broken (state %d)", state);
+    }
+}
+
+void LabJackU6Device::lever2SolenoidDO(bool state) {
+    // Takes and releases driver lock
+    
+    boost::mutex::scoped_lock lock(ljU6DriverLock);
+
+    if (eDO(ljHandle, LJU6_LEVER2SOLENOID_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing lever solenoid state; device likely to be broken (state %d)", state);
     }
 	 
 }
+
 
 void LabJackU6Device::laserDO(bool state) {
     // Takes and releases driver lock
@@ -233,22 +243,20 @@ void LabJackU6Device::strobedDigitalWordDO(unsigned int digWord) {
 }
 
 
-bool LabJackU6Device::readDI()
+bool LabJackU6Device::readDI(bool *outLever1, bool *outLever2)
 // Takes the driver lock and releases it
 {
 	shared_ptr <Clock> clock = Clock::instance();
     
-	unsigned int soloState = 0L;
-	unsigned int pair1State = 0L;
-	unsigned int pair2State = 0L;
+	unsigned int lever1State = 0L;
+	unsigned int lever2State = 0L;
 	
 	unsigned int fioState = 0L;
 	unsigned int eioState = 0L;
 	unsigned int cioState = 0L;
 	
-	static unsigned int lastSoloState = 0xff;
-	static unsigned int lastPair1State = 0xff;
-	static unsigned int lastPair2State = 0xff;
+	static unsigned int lastLever1State = 0xff;
+	static unsigned int lastLever2State = 0xff;
 	static long unsigned slowCount = 0;
 	
 	boost::mutex::scoped_lock lock(ljU6DriverLock);
@@ -270,16 +278,19 @@ bool LabJackU6Device::readDI()
 			merror(M_IODEVICE_MESSAGE_DOMAIN, "ljU6ReadPorts time elapsed is %.3f ms", elT / 1000.0);
 		}
 		else if ((slowCount < 100 && !(slowCount % 10)) || (!(slowCount % 1000))) {
-			merror(M_IODEVICE_MESSAGE_DOMAIN, "!! read port time elapsed >%.0f ms %d times", kDIReportTimeUS / 1000.0,
-				   slowCount);
+			merror(M_IODEVICE_MESSAGE_DOMAIN, "!! read port time elapsed: this time %.3f, >%.0f ms %d times", 
+					elT / 1000.0, 
+					kDIReportTimeUS / 1000.0,
+					slowCount);
 		}
     }
     
     // software debouncing
-	debounce_bit(&soloState, &lastSoloState, &lastSoloLeverTransitionTimeUS, clock);
-	debounce_bit(&pair1State, &lastPair1State, &lastPairLever1TransitionTimeUS, clock);
-	debounce_bit(&pair2State, &lastPair2State, &lastPairLever2TransitionTimeUS, clock);
+	debounce_bit(&lever1State, &lastLever1State, &lastLever1TransitionTimeUS, clock);
+	debounce_bit(&lever2State, &lastLever2State, &lastLever2TransitionTimeUS, clock);
 	
+    *outLever1 = lever1State;
+    *outLever2 = lever2State;
 	
 	return(1);
 }
@@ -308,23 +319,37 @@ void debounce_bit(unsigned int *thisState, unsigned int *lastState, MWTime *last
 void *update_lever(const weak_ptr<LabJackU6Device> &gp){
 	shared_ptr <Clock> clock = Clock::instance();
 	shared_ptr <LabJackU6Device> sp = gp.lock();
-	sp->updateSwitch();
+	sp->pollAllDI();
 	sp.reset();
     return NULL;
 }
 
-bool LabJackU6Device::updateSwitch() {	
+bool LabJackU6Device::pollAllDI() {	
 	
 	
-	bool switchValue = readDI();
+    bool lever1Value;
+    bool lever2Value;
+    bool res;
+    
+	res = readDI(&lever1Value, &lever2Value);
+    if (!res) {
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "LJU6: error in readDI()");
+    }
 
     // Change MW variable value only if switch state is unchanged, or this is the first time through
-    if ( (lastSoloLeverPressValue == -1) // -1 means first time through
-        || (switchValue != lastSoloLeverPressValue) ) {
+    if ( (lastLever1Value == -1) // -1 means first time through
+        || (lever1Value != lastLever1Value) ) {
         
-        soloLever->setValue(Datum(switchValue));
-        lastSoloLeverPressValue = switchValue;
+        lever1->setValue(Datum(lever1Value));
+        lastLever1Value = lever1Value;
+    }    
+    if ( (lastLever2Value == -1) // -1 means first time through
+        || (lever2Value != lastLever1Value) ) {
+        
+        lever2->setValue(Datum(lever2Value));
+        lastLever2Value = lever2Value;
     }
+    
 	return true;
 }
 
@@ -456,11 +481,13 @@ bool LabJackU6Device::stopDeviceIO(){
 		mprintf("LabJackU6Device: stopDeviceIO");
 	}
 	if (!deviceIOrunning) {
-        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "stopDeviceIO: already stopped on entry; using this chance to turn off lever solenoid");
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "stopDeviceIO: already stopped on entry; using this chance to turn off lever solenoids");
         
         // force off solenoid
-        this->leverSolenoid->setValue(false);
-        solenoidDO(false);
+        this->lever1Solenoid->setValue(false);
+        this->lever2Solenoid->setValue(false);
+        lever1SolenoidDO(false);
+        lever2SolenoidDO(false);
 		
 		return false;
 	}
@@ -488,10 +515,10 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	
 	const char *PULSE_DURATION = "pulse_duration";
 	const char *PULSE_ON = "pulse_on";
-	const char *SOLO_LEVER = "solo_lever";
-	const char *PAIR_LEVER1 = "pair_lever1";
-	const char *PAIR_LEVER2 = "pair_lever2";
-	const char *LEVER_SOLENOID = "lever_solenoid";
+	const char *LEVER1 = "lever1";
+	const char *LEVER2 = "lever2";
+	const char *LEVER1_SOLENOID = "lever1_solenoid";
+	const char *LEVER2_SOLENOID = "lever2_solenoid";
 	const char *LASER_TRIGGER = "laser_trigger";
 	const char *STROBED_DIGITAL_WORD = "strobed_digital_word";
 	
@@ -515,40 +542,40 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 					   parameters.find(PULSE_ON)->second);
 	}
 	
-	boost::shared_ptr<mw::Variable> solo_lever = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
-	if(parameters.find(SOLO_LEVER) != parameters.end()) {
-		solo_lever = reg->getVariable(parameters.find(SOLO_LEVER)->second);	
-		checkAttribute(solo_lever, 
+	boost::shared_ptr<mw::Variable> lever1 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	if(parameters.find(LEVER1) != parameters.end()) {
+		lever1 = reg->getVariable(parameters.find(LEVER1)->second);	
+		checkAttribute(lever1, 
 					   parameters.find("reference_id")->second, 
-					   SOLO_LEVER, 
-					   parameters.find(SOLO_LEVER)->second);
+					   LEVER1, 
+					   parameters.find(LEVER1)->second);
 	}
 
-	boost::shared_ptr<mw::Variable> pair_lever1 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
-	if(parameters.find(PAIR_LEVER1) != parameters.end()) {
-		pair_lever1 = reg->getVariable(parameters.find(PAIR_LEVER1)->second);	
-		checkAttribute(pair_lever1, 
+	boost::shared_ptr<mw::Variable> lever2 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	if(parameters.find(LEVER2) != parameters.end()) {
+		lever2 = reg->getVariable(parameters.find(LEVER2)->second);	
+		checkAttribute(lever2, 
 					   parameters.find("reference_id")->second, 
-					   PAIR_LEVER1, 
-					   parameters.find(PAIR_LEVER1)->second);
-	}
-
-	boost::shared_ptr<mw::Variable> pair_lever2 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
-	if(parameters.find(PAIR_LEVER2) != parameters.end()) {
-		pair_lever2 = reg->getVariable(parameters.find(PAIR_LEVER2)->second);	
-		checkAttribute(pair_lever2, 
-					   parameters.find("reference_id")->second, 
-					   PAIR_LEVER2, 
-					   parameters.find(PAIR_LEVER2)->second);
+					   LEVER2, 
+					   parameters.find(LEVER2)->second);
 	}	
 	
-    boost::shared_ptr<mw::Variable> lever_solenoid = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
-	if(parameters.find(LEVER_SOLENOID) != parameters.end()) {
-		lever_solenoid = reg->getVariable(parameters.find(LEVER_SOLENOID)->second);	
-		checkAttribute(lever_solenoid,
+    boost::shared_ptr<mw::Variable> lever1_solenoid = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
+	if(parameters.find(LEVER1_SOLENOID) != parameters.end()) {
+		lever1_solenoid = reg->getVariable(parameters.find(LEVER1_SOLENOID)->second);	
+		checkAttribute(lever1_solenoid,
 					   parameters.find("reference_id")->second, 
-					   LEVER_SOLENOID, 
-					   parameters.find(LEVER_SOLENOID)->second);
+					   LEVER1_SOLENOID, 
+					   parameters.find(LEVER1_SOLENOID)->second);
+	}
+    
+    boost::shared_ptr<mw::Variable> lever2_solenoid = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
+	if(parameters.find(LEVER2_SOLENOID) != parameters.end()) {
+		lever2_solenoid = reg->getVariable(parameters.find(LEVER2_SOLENOID)->second);	
+		checkAttribute(lever2_solenoid,
+					   parameters.find("reference_id")->second, 
+					   LEVER2_SOLENOID, 
+					   parameters.find(LEVER2_SOLENOID)->second);
 	}
 
 	boost::shared_ptr<mw::Variable> laser_trigger = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
@@ -575,10 +602,10 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	boost::shared_ptr <mw::Component> new_daq = boost::shared_ptr<mw::Component>(new LabJackU6Device(scheduler,
 																									 pulse_duration, 
 																									 pulse_on, 
-                                                                                                     solo_lever,	
-																									 pair_lever1, 
-																									 pair_lever2,
-                                                                                                     lever_solenoid,
+																									 lever1, 
+																									 lever2,
+                                                                                                     lever1_solenoid,
+																									 lever2_solenoid,
 																									 laser_trigger,
 																									 strobed_digital_word));
 	return new_daq;
@@ -592,10 +619,15 @@ void LabJackU6Device::variableSetup() {
 	shared_ptr<VariableNotification> notif(new LabJackU6DeviceOutputNotification(weak_self_ref));
 	doReward->addNotification(notif);
     
-	// leverSolenoid
-	shared_ptr<Variable> doLS = this->leverSolenoid;
-	shared_ptr<VariableNotification> notif2(new LabJackU6DeviceLSNotification(weak_self_ref));
-	doLS->addNotification(notif2);
+	// lever1Solenoid
+	shared_ptr<Variable> doL1S = this->lever1Solenoid;
+	shared_ptr<VariableNotification> notif2(new LabJackU6DeviceL1SNotification(weak_self_ref));
+	doL1S->addNotification(notif2);	
+	
+	// lever2Solenoid
+	shared_ptr<Variable> doL2S = this->lever2Solenoid;
+	shared_ptr<VariableNotification> notif2a(new LabJackU6DeviceL2SNotification(weak_self_ref));
+	doL2S->addNotification(notif2a);
 
 	// laserTrigger
 	shared_ptr<Variable> doLT = this->laserTrigger;
