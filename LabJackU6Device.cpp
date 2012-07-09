@@ -23,8 +23,11 @@
 //#define LJU6_STROBE_FIO       7   // Use a 12-bit word; EIO0-7, CIO0-2, all encoded below
 #define LJU6_LASERTRIGGER_FIO 3
 #define LJU6_LEVERSOLENOID_FIO 2
-#define LJU6_LEVERPRESS_FIO 1
 #define LJU6_REWARD_FIO     0
+#define LJU6_SOLOLEVER_FIO 1
+#define LJU6_PAIRLEVER1_FIO 5
+#define LJU6_PAIRLEVER2_FIO 6
+
 
 #define LJU6_EMPIRICAL_DO_LATENCY_MS 1   // average when plugged into a highspeed hub.  About 8ms otherwise
 
@@ -32,6 +35,11 @@ static const char ljPortDir[3] = { 0xfd, 0xff, 0xff };   // 0-7 FIO, 8-15 EIO, 1
 													     // 0xfd is 0x1111 1101
 
 using namespace mw;
+
+/* helper function declarations */
+void debounce_bit(unsigned int *thisState, unsigned int *lastState, MWTime *lastTransitionTimeUS, shared_ptr <Clock> clock);
+
+
 
 /* Notes to self MH 100422
  This is how we do setup and cleanup
@@ -57,8 +65,10 @@ using namespace mw;
 LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_scheduler,
                                  const boost::shared_ptr <Variable> _pulseDurationMS,
                                  const boost::shared_ptr <Variable> _pulseOn,
-                                 const boost::shared_ptr <Variable> _leverPress, 
+                                 const boost::shared_ptr <Variable> _soloLever, 
                                  const boost::shared_ptr <Variable> _leverSolenoid, 
+								 const boost::shared_ptr <Variable> _pairLever1, 									
+								 const boost::shared_ptr <Variable> _pairLever2, 									
 								 const boost::shared_ptr <Variable> _laserTrigger, 
 								 const boost::shared_ptr <Variable> _strobedDigitalWord)
 {
@@ -68,14 +78,20 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
 	scheduler = a_scheduler;
 	pulseDurationMS = _pulseDurationMS;
 	pulseOn = _pulseOn;
-	leverPress = _leverPress;
+	soloLever = _soloLever;
+	pairLever1 = _pairLever1;
+	pairLever2 = _pairLever2;
     leverSolenoid = _leverSolenoid;
 	laserTrigger = _laserTrigger;
 	strobedDigitalWord = _strobedDigitalWord;
 	deviceIOrunning = false;
     ljHandle = NULL;
-    lastLeverPressValue = -1;  // -1 means always report first value
-    lastDITransitionTimeUS = 0; 
+    lastSoloLeverPressValue = -1;  // -1 means always report first value
+	lastPairLever1PressValue = -1;  // -1 means always report first value
+	lastPairLever2PressValue = -1;  // -1 means always report first value
+    lastSoloLeverTransitionTimeUS = 0; 
+	lastPairLever1TransitionTimeUS = 0; 
+	lastPairLever2TransitionTimeUS = 0;
 }
 
 
@@ -125,7 +141,7 @@ void LabJackU6Device::pulseDOHigh(int pulseLengthUS) {
 		mprintf("LabJackU6Device: setting pulse high %d ms (%lld)", pulseLengthUS / 1000, clock->getCurrentTimeUS());
 	}
 	MWTime t1 = clock->getCurrentTimeUS();  // to check elapsed time below
-    if (ljU6WriteDI(ljHandle, LJU6_REWARD_FIO, 1) == false) {
+    if (ljU6WriteDO(ljHandle, LJU6_REWARD_FIO, 1) == false) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing digital output high; device likely to not work from here on");
         return;
     }
@@ -177,7 +193,7 @@ void LabJackU6Device::pulseDOLow() {
     if (VERBOSE_IO_DEVICE >= 2) {
         mprintf("LabJackU6Device: pulseDOLow at %lld us (pulse %lld us long)", current, current - highTimeUS);
     }
-    if (ljU6WriteDI(ljHandle, LJU6_REWARD_FIO, 0) == false) {
+    if (ljU6WriteDO(ljHandle, LJU6_REWARD_FIO, 0) == false) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing digital output low; device likely to not work from here on");
     }
 	// set juice variable low
@@ -220,52 +236,72 @@ void LabJackU6Device::strobedDigitalWordDO(unsigned int digWord) {
 bool LabJackU6Device::readDI()
 // Takes the driver lock and releases it
 {
-    
-	long int state = 0L;
-	
 	shared_ptr <Clock> clock = Clock::instance();
-	static bool lastState = 0xff;
+    
+	unsigned int soloState = 0L;
+	unsigned int pair1State = 0L;
+	unsigned int pair2State = 0L;
+	
+	unsigned int fioState = 0L;
+	unsigned int eioState = 0L;
+	unsigned int cioState = 0L;
+	
+	static unsigned int lastSoloState = 0xff;
+	static unsigned int lastPair1State = 0xff;
+	static unsigned int lastPair2State = 0xff;
 	static long unsigned slowCount = 0;
 	
 	boost::mutex::scoped_lock lock(ljU6DriverLock);
+	
 	if (ljHandle == NULL || !this->getActive()) {
 		return false;
 	}
-    MWTime st = clock->getCurrentTimeUS();
-    if (!ljU6ReadDI(ljHandle, LJU6_LEVERPRESS_FIO, &state)) {
+    
+	MWTime st = clock->getCurrentTimeUS();
+	if (!ljU6ReadPorts(ljHandle, &fioState, &eioState, &cioState)) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "Error reading DI, stopping IO and returning FALSE");
         stopDeviceIO();  // We are seeing USB errors causing this, and the U6 doesn't work anyway, so might as well stop the threads
-        //Debugger();
         return false;
     }
     MWTime elT = clock->getCurrentTimeUS()-st;
-    if (elT > kDIReportTimeUS) {
+    
+	if (elT > kDIReportTimeUS) {
 		if (++slowCount < 10) {
-			merror(M_IODEVICE_MESSAGE_DOMAIN, "readDI time elapsed is %.3f ms", elT / 1000.0);
+			merror(M_IODEVICE_MESSAGE_DOMAIN, "ljU6ReadPorts time elapsed is %.3f ms", elT / 1000.0);
 		}
 		else if ((slowCount < 100 && !(slowCount % 10)) || (!(slowCount % 1000))) {
-			merror(M_IODEVICE_MESSAGE_DOMAIN, "readDI time elapsed >%.0f ms %d times", kDIReportTimeUS / 1000.0,
+			merror(M_IODEVICE_MESSAGE_DOMAIN, "!! read port time elapsed >%.0f ms %d times", kDIReportTimeUS / 1000.0,
 				   slowCount);
 		}
     }
     
     // software debouncing
-	if (state != lastState) {
-		if (clock->getCurrentTimeUS() - lastDITransitionTimeUS < kDIDeadtimeUS) {
-			state = lastState;				// discard changes during deadtime
+	debounce_bit(&soloState, &lastSoloState, &lastSoloLeverTransitionTimeUS, clock);
+	debounce_bit(&pair1State, &lastPair1State, &lastPairLever1TransitionTimeUS, clock);
+	debounce_bit(&pair2State, &lastPair2State, &lastPairLever2TransitionTimeUS, clock);
+	
+	
+	return(1);
+}
+
+/*******************************************************************/
+
+void debounce_bit(unsigned int *thisState, unsigned int *lastState, MWTime *lastTransitionTimeUS, shared_ptr <Clock> clock) {
+	// software debouncing
+	if (*thisState != *lastState) {
+		if (clock->getCurrentTimeUS() - *lastTransitionTimeUS < kDIDeadtimeUS) {
+			*thisState = *lastState;				// discard changes during deadtime
 			mwarning(M_IODEVICE_MESSAGE_DOMAIN, 
                      "LabJackU6Device: readDI, debounce rejecting new read (last %lld now %lld, diff %lld)", 
-                     lastDITransitionTimeUS, 
+                     *lastTransitionTimeUS, 
                      clock->getCurrentTimeUS(),
-                     clock->getCurrentTimeUS() - lastDITransitionTimeUS);
+                     clock->getCurrentTimeUS() - *lastTransitionTimeUS);
 		}
-		lastState = state;					// record and report the transition
-		lastDITransitionTimeUS = clock->getCurrentTimeUS();
+		*lastState = *thisState;					// record and report the transition
+		*lastTransitionTimeUS = clock->getCurrentTimeUS();
 	}
-    //lock.unlock();  //printf("unlock readDI\n"); fflush(stdout);
+}	
 	
-	return(state);
-}
 
 // External function for scheduling
 
@@ -283,11 +319,11 @@ bool LabJackU6Device::updateSwitch() {
 	bool switchValue = readDI();
 
     // Change MW variable value only if switch state is unchanged, or this is the first time through
-    if ( (lastLeverPressValue == -1) // -1 means first time through
-        || (switchValue != lastLeverPressValue) ) {
+    if ( (lastSoloLeverPressValue == -1) // -1 means first time through
+        || (switchValue != lastSoloLeverPressValue) ) {
         
-        leverPress->setValue(Datum(switchValue));
-        lastLeverPressValue = switchValue;
+        soloLever->setValue(Datum(switchValue));
+        lastSoloLeverPressValue = switchValue;
     }
 	return true;
 }
@@ -296,41 +332,6 @@ bool LabJackU6Device::updateSwitch() {
 
 /* IODevice virtual calls (made by MWorks) ***********************/
 
-/* DEPRECATED in 0.4.4
- 
-bool LabJackU6Device::attachPhysicalDevice(){  
-    // Attach next available device to this object
-    // Also, first time configuration for this device.  
-    // Opens device; reset if it is dead; and configure IO ports
-    // Takes and releases driver lock
-
-//	attached_device = new IOPhysicalDeviceReference(0, "LabJackU6");	// Seem to be no longer supported in MWorks
-	
-	if (VERBOSE_IO_DEVICE >= 2) {
-		mprintf("LabJackU6Device: attachPhysicalDevice");
-	}
-    
-    this->variableSetup();
-    boost::mutex::scoped_lock lock(ljU6DriverLock);  //printf("lock %s\n", "attachPhysicalDevice");
-    
-    assert(ljHandle == NULL);  // should not try to configure if already open.  If we relax this in the future
-    // go through this code and check that we clean up properly
-    
-    // Opening first found U6 over USB
-    
-	ljHandle = openUSBConnection(-1);
-    ljU6DriverLock.unlock();
-	if (ljHandle == NULL) {
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "Error opening LabJack U6.  Is it connected to USB?");
-        return false;														// no cleanup needed
-    }
-    setupU6PortsAndRestartIfDead();
-    if (VERBOSE_IO_DEVICE >= 0) {
-        mprintf("LabJackU6Device: attachPhysicalDevice: found LabJackU6"); // we should print more USB device info here
-    }
-    return true;
-}
-*/
 
 // Attempt to find the LabJack hardware and initialize it.
 
@@ -487,7 +488,9 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	
 	const char *PULSE_DURATION = "pulse_duration";
 	const char *PULSE_ON = "pulse_on";
-	const char *LEVER_PRESS = "lever_press";
+	const char *SOLO_LEVER = "solo_lever";
+	const char *PAIR_LEVER1 = "pair_lever1";
+	const char *PAIR_LEVER2 = "pair_lever2";
 	const char *LEVER_SOLENOID = "lever_solenoid";
 	const char *LASER_TRIGGER = "laser_trigger";
 	const char *STROBED_DIGITAL_WORD = "strobed_digital_word";
@@ -512,14 +515,32 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 					   parameters.find(PULSE_ON)->second);
 	}
 	
-	boost::shared_ptr<mw::Variable> lever_press = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
-	if(parameters.find(LEVER_PRESS) != parameters.end()) {
-		lever_press = reg->getVariable(parameters.find(LEVER_PRESS)->second);	
-		checkAttribute(lever_press, 
+	boost::shared_ptr<mw::Variable> solo_lever = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	if(parameters.find(SOLO_LEVER) != parameters.end()) {
+		solo_lever = reg->getVariable(parameters.find(SOLO_LEVER)->second);	
+		checkAttribute(solo_lever, 
 					   parameters.find("reference_id")->second, 
-					   LEVER_PRESS, 
-					   parameters.find(LEVER_PRESS)->second);
+					   SOLO_LEVER, 
+					   parameters.find(SOLO_LEVER)->second);
 	}
+
+	boost::shared_ptr<mw::Variable> pair_lever1 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	if(parameters.find(PAIR_LEVER1) != parameters.end()) {
+		pair_lever1 = reg->getVariable(parameters.find(PAIR_LEVER1)->second);	
+		checkAttribute(pair_lever1, 
+					   parameters.find("reference_id")->second, 
+					   PAIR_LEVER1, 
+					   parameters.find(PAIR_LEVER1)->second);
+	}
+
+	boost::shared_ptr<mw::Variable> pair_lever2 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	if(parameters.find(PAIR_LEVER2) != parameters.end()) {
+		pair_lever2 = reg->getVariable(parameters.find(PAIR_LEVER2)->second);	
+		checkAttribute(pair_lever2, 
+					   parameters.find("reference_id")->second, 
+					   PAIR_LEVER2, 
+					   parameters.find(PAIR_LEVER2)->second);
+	}	
 	
     boost::shared_ptr<mw::Variable> lever_solenoid = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
 	if(parameters.find(LEVER_SOLENOID) != parameters.end()) {
@@ -554,7 +575,9 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	boost::shared_ptr <mw::Component> new_daq = boost::shared_ptr<mw::Component>(new LabJackU6Device(scheduler,
 																									 pulse_duration, 
 																									 pulse_on, 
-                                                                                                     lever_press,	
+                                                                                                     solo_lever,	
+																									 pair_lever1, 
+																									 pair_lever2,
                                                                                                      lever_solenoid,
 																									 laser_trigger,
 																									 strobed_digital_word));
@@ -615,21 +638,23 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     
     ////setup one to be output, one input, and set output to zero
     //sendDataBuff[0] = 13;       //IOType is BitDirWrite
-    //sendDataBuff[1] = (LJU6_LEVERPRESS_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
+    //sendDataBuff[1] = (LJU6_SOLOLEVER_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
     //sendDataBuff[2] = 13;       //IOType is BitDirWrite
     //sendDataBuff[3] = LJU6_REWARD_FIO & 0x0f | (1 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
     //sendDataBuff[4] = 11;             //IOType is BitStateWrite
     //sendDataBuff[5] = (LJU6_REWARD_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + State (bit 7)
 	
 	sendDataBuff[0] = 29;		// PortDirWrite
-	sendDataBuff[1] = ( (0x01 << LJU6_REWARD_FIO) | (0x01 << LJU6_LEVERPRESS_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
-					   | (0x01 << LJU6_LASERTRIGGER_FIO) | (0x01 << 7) ); 
+	sendDataBuff[1] = ( (0x01 << LJU6_REWARD_FIO) | (0x01 << LJU6_SOLOLEVER_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
+					   |(0x01 << LJU6_LASERTRIGGER_FIO) | (0x01 << LJU6_PAIRLEVER1_FIO) | (0x01 << LJU6_PAIRLEVER2_FIO) 
+					   |(0x01 << 7) ); 
 								// FIO mask.  Note pin 7 is hardcoded to be the strobe.
 	sendDataBuff[2] = 0xff;		// EIO mask
 	sendDataBuff[3] = 0x0f;		// CIO mask
-	sendDataBuff[4] = ( (0x01 << LJU6_REWARD_FIO) | (0x00 << LJU6_LEVERPRESS_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
-					   | (0x01 << LJU6_LASERTRIGGER_FIO) | (0x01 << 7) ); 
-								// FIO dir data: 1 is output 0 is input (only input now is leverpress)
+	sendDataBuff[4] = ( (0x01 << LJU6_REWARD_FIO) | (0x00 << LJU6_SOLOLEVER_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
+					   |(0x01 << LJU6_LASERTRIGGER_FIO) | (0x00 << LJU6_PAIRLEVER1_FIO) | (0x00 << LJU6_PAIRLEVER2_FIO) 
+					   |(0x01 << 7) ); 
+								// FIO dir data: 1 is output 0 is input (only input now is levers)
 	sendDataBuff[5] = 0xff;		// EIO dir: all output
 	sendDataBuff[6] = 0x0f;		// CIO dir: all output (only 4 bits)
 	
@@ -691,7 +716,27 @@ bool LabJackU6Device::ljU6ReadDI(HANDLE Handle, long Channel, long* State) {
     return true;
 }
 
-bool LabJackU6Device::ljU6WriteDI(HANDLE Handle, long Channel, long State) {
+bool LabJackU6Device::ljU6ReadPorts(HANDLE Handle, 
+									unsigned int *fioState, unsigned int *eioState, unsigned int *cioState)
+{
+    uint8 sendDataBuff[1], recDataBuff[3];
+    uint8 Errorcode, ErrorFrame;
+	
+	
+    sendDataBuff[0] = 26;       //IOType is PortStateRead
+	
+    if(ehFeedback(Handle, sendDataBuff, 1, &Errorcode, &ErrorFrame, recDataBuff, 1) < 0)
+        return -1;
+    if(Errorcode)
+        return (long)Errorcode;
+	
+	*fioState = recDataBuff[0];
+	*eioState = recDataBuff[1];
+	*cioState = recDataBuff[2];
+    return 0;
+}
+
+bool LabJackU6Device::ljU6WriteDO(HANDLE Handle, long Channel, long State) {
 
     uint8 sendDataBuff[2]; // recDataBuff[1];
     uint8 Errorcode, ErrorFrame;

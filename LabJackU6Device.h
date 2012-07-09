@@ -36,7 +36,14 @@ class LabJackU6Device : public IODevice {
 protected:  
 	
 	bool						connected;
-	MWTime						lastDITransitionTimeUS;
+
+	MWTime						lastSoloLeverTransitionTimeUS;
+	MWTime						lastPairLever1TransitionTimeUS;
+	MWTime						lastPairLever2TransitionTimeUS;
+	int lastSoloLeverPressValue;	
+	int lastPairLever1PressValue;	
+	int lastPairLever2PressValue;	
+	
 	boost::shared_ptr <Scheduler> scheduler;
 	shared_ptr<ScheduleTask>	pulseScheduleNode;
 	shared_ptr<ScheduleTask>	pollScheduleNode;
@@ -49,7 +56,9 @@ protected:
     
 	boost::shared_ptr <Variable> pulseDurationMS;
 	boost::shared_ptr <Variable> pulseOn;
-	boost::shared_ptr <Variable> leverPress;
+	boost::shared_ptr <Variable> soloLever;
+	boost::shared_ptr <Variable> pairLever1;
+	boost::shared_ptr <Variable> pairLever2;
 	boost::shared_ptr <Variable> leverSolenoid;
 	boost::shared_ptr <Variable> laserTrigger;
 	boost::shared_ptr <Variable> strobedDigitalWord;
@@ -57,26 +66,28 @@ protected:
 	//MWTime update_period;  MH this is now hardcoded, users should not change this
 	
 	bool active;
-	int lastLeverPressValue;	
 	boost::mutex active_mutex;
 	bool deviceIOrunning;
 	
 	// raw hardware functions
 	bool ljU6ConfigPorts(HANDLE Handle);
 	bool ljU6ReadDI(HANDLE Handle, long Channel, long* State);
-	bool ljU6WriteDI(HANDLE Handle, long Channel, long State);
+	bool ljU6WriteDO(HANDLE Handle, long Channel, long State);
 	bool ljU6WriteStrobedWord(HANDLE Handle, unsigned int inWord);
+	bool ljU6ReadPorts(HANDLE Handle, unsigned int *fioState, unsigned int *eioState, unsigned int *cioState);
+
     
 public:
 	
 	LabJackU6Device(const boost::shared_ptr <Scheduler> &a_scheduler,
 					const boost::shared_ptr <Variable> _pulseDurationMS,
 					const boost::shared_ptr <Variable> _pulseOn,
-                    const boost::shared_ptr <Variable> _leverPress,
-                    const boost::shared_ptr <Variable> _leverSolenoid,
+					const boost::shared_ptr <Variable> _soloLever, 
+					const boost::shared_ptr <Variable> _leverSolenoid, 
+					const boost::shared_ptr <Variable> _pairLever1, 									
+					const boost::shared_ptr <Variable> _pairLever2, 									
 					const boost::shared_ptr <Variable> _laserTrigger, 
-					const boost::shared_ptr <Variable> _strobedDigitalWord);
-	
+					const boost::shared_ptr <Variable> _strobedDigitalWord);	
 	~LabJackU6Device();
 	LabJackU6Device(const LabJackU6Device& copy);
 	
