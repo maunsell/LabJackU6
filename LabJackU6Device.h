@@ -111,7 +111,7 @@ public:
 	bool setupU6PortsAndRestartIfDead();
 	
 	
-	bool readDI(bool *outLever1, bool *outLever2);
+	bool readLeverDI(bool *outLever1, bool *outLever2);
 	void pulseDOHigh(int pulseLengthUS);
 	void pulseDOLow();
 	void leverSolenoidDO(bool state, long channel);
@@ -122,23 +122,21 @@ public:
 		if(getActive()){
 			bool doReward = (bool)data;
 			
-			// Bring DO high for pulseDurationMS ms.
-			
-			
+			// Bring DO high for pulseDurationMS 
 			if (doReward) {
-				//bring DO high
-				//mprintf("Yum juice!");
 				this->pulseDOHigh(pulseDurationMS->getValue());
 			}
 		}
 	}
 	virtual void setLever1Solenoid(Datum data) {   
+        //mprintf(M_IODEVICE_MESSAGE_DOMAIN, "set 1");
 		if (getActive()) {
 			bool lever1SolenoidState = (bool)data;
 			this->leverSolenoidDO(lever1SolenoidState, LJU6_LEVER1SOLENOID_FIO);
 		}
 	}
 	virtual void setLever2Solenoid(Datum data) {   
+        //mprintf(M_IODEVICE_MESSAGE_DOMAIN, "set 2");
 		if (getActive()) {
 			bool lever2SolenoidState = (bool)data;
 			this->leverSolenoidDO(lever2SolenoidState, LJU6_LEVER2SOLENOID_FIO);
@@ -183,23 +181,18 @@ class LabJackU6DeviceFactory : public ComponentFactory {
 
 
 class LabJackU6DeviceOutputNotification : public VariableNotification {
-
+        /* reward variable */
 	protected:
-	
 		weak_ptr<LabJackU6Device> daq;
 	
-	
 	public:
-	
 		LabJackU6DeviceOutputNotification(weak_ptr<LabJackU6Device> _daq){
 			daq = _daq;
 		}
 	
 		virtual void notify(const Datum& data, MWTime timeUS){
-
 			shared_ptr<LabJackU6Device> shared_daq(daq);
 			shared_daq->dispense(data);
-			
 		}
 };
 

@@ -1,9 +1,10 @@
-/*
+/*  -*- mode: c++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+
  *  LabJack U6 Plugin for MWorks
  *
- *  Created by Mark Histed on 100421
- *    (based on Nidaq plugin code by Jon Hendry and John Maunsell)
- *  Revised for two levers histed 120708
+ *  100421: Mark Histed created
+ *    (based on Nidaq plugin code; Hendry, Maunsell)
+ *  120708 histed - revised for two levers
  *
  */
 
@@ -25,8 +26,17 @@
 
 #define LJU6_EMPIRICAL_DO_LATENCY_MS 1   // average when plugged into a highspeed hub.  About 8ms otherwise
 
-static const char ljPortDir[3] = { 0xfd, 0xff, 0xff };   // 0-7 FIO, 8-15 EIO, 16-19 CIO; 0 input, 1 output
-													     // 0xfd is 0x1111 1101
+static const char ljPortDir[3] = {  // 0 input, 1 output
+    ( (0x01 << LJU6_REWARD_FIO)   
+      | (0x01 << LJU6_LEVER1SOLENOID_FIO)
+      | (0x01 << LJU6_LEVER2SOLENOID_FIO)
+      | (0x01 << LJU6_LASERTRIGGER_FIO) 
+      | (0x00 << LJU6_LEVER1_FIO)   
+      | (0x00 << LJU6_LEVER2_FIO) 
+      | (0x01 << LJU6_STROBE_FIO) ), 
+    0xff,     // EIO
+    0xf0 };   // CIO
+
 
 using namespace mw;
 
@@ -67,7 +77,7 @@ LabJackU6Device::LabJackU6Device(const boost::shared_ptr <Scheduler> &a_schedule
 								 const boost::shared_ptr <Variable> _strobedDigitalWord)
 {
 	if (VERBOSE_IO_DEVICE >= 2) {
-		mprintf("LabJackU6Device: constructor");
+		mprintf(M_IODEVICE_MESSAGE_DOMAIN, "LabJackU6Device: constructor");
 	}
 	scheduler = a_scheduler;
 	pulseDurationMS = _pulseDurationMS;
@@ -224,7 +234,7 @@ void LabJackU6Device::strobedDigitalWordDO(unsigned int digWord) {
 }
 
 
-bool LabJackU6Device::readDI(bool *outLever1, bool *outLever2)
+bool LabJackU6Device::readLeverDI(bool *outLever1, bool *outLever2)
 // Takes the driver lock and releases it
 {
 	shared_ptr <Clock> clock = Clock::instance();
@@ -265,6 +275,8 @@ bool LabJackU6Device::readDI(bool *outLever1, bool *outLever2)
 					slowCount);
 		}
     }
+    lever1State = (fioState >> LJU6_LEVER1_FIO) & 0x01;
+    lever2State = (fioState >> LJU6_LEVER2_FIO) & 0x01;
     
     // software debouncing
 	debounce_bit(&lever1State, &lastLever1State, &lastLever1TransitionTimeUS, clock);
@@ -284,7 +296,7 @@ void debounce_bit(unsigned int *thisState, unsigned int *lastState, MWTime *last
 		if (clock->getCurrentTimeUS() - *lastTransitionTimeUS < kDIDeadtimeUS) {
 			*thisState = *lastState;				// discard changes during deadtime
 			mwarning(M_IODEVICE_MESSAGE_DOMAIN, 
-                     "LabJackU6Device: readDI, debounce rejecting new read (last %lld now %lld, diff %lld)", 
+                     "LabJackU6Device: readLeverDI, debounce rejecting new read (last %lld now %lld, diff %lld)", 
                      *lastTransitionTimeUS, 
                      clock->getCurrentTimeUS(),
                      clock->getCurrentTimeUS() - *lastTransitionTimeUS);
@@ -307,14 +319,15 @@ void *update_lever(const weak_ptr<LabJackU6Device> &gp){
 
 bool LabJackU6Device::pollAllDI() {	
 	
-	
     bool lever1Value;
     bool lever2Value;
     bool res;
     
-	res = readDI(&lever1Value, &lever2Value);
+	res = readLeverDI(&lever1Value, &lever2Value);
+    //mprintf(M_IODEVICE_MESSAGE_DOMAIN, "levers: %d %d", lever1Value, lever2Value);
+    
     if (!res) {
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "LJU6: error in readDI()");
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "LJU6: error in readLeverDI()");
     }
 
     // Change MW variable value only if switch state is unchanged, or this is the first time through
@@ -325,7 +338,7 @@ bool LabJackU6Device::pollAllDI() {
         lastLever1Value = lever1Value;
     }    
     if ( (lastLever2Value == -1) // -1 means first time through
-        || (lever2Value != lastLever1Value) ) {
+        || (lever2Value != lastLever2Value) ) {
         
         lever2->setValue(Datum(lever2Value));
         lastLever2Value = lever2Value;
@@ -361,6 +374,29 @@ bool LabJackU6Device::initialize() {
     if (VERBOSE_IO_DEVICE >= 0) {
         mprintf("LabJackU6Device::initialize: found LabJackU6");
     }
+    
+    // set output ports to desired state here
+    if (!ljU6WriteDO(ljHandle, LJU6_LEVER1SOLENOID_FIO, 0) == 1)
+        return false; // merror is done in ljU6WriteDO
+    this->lever1Solenoid->setValue(Datum(M_BOOLEAN, 0));
+
+    if (!ljU6WriteDO(ljHandle, LJU6_LEVER2SOLENOID_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO
+    this->lever2Solenoid->setValue(Datum(M_BOOLEAN, 0));
+    
+    if (!ljU6WriteDO(ljHandle, LJU6_REWARD_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO
+    this->pulseOn->setValue(Datum(M_INTEGER, 0));
+    this->pulseDurationMS->setValue(Datum(M_INTEGER, 0));
+    
+    if (!ljU6WriteDO(ljHandle, LJU6_LASERTRIGGER_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO    
+    this->laserTrigger->setValue(Datum(M_BOOLEAN, 0));
+    
+    if (!ljU6WriteDO(ljHandle, LJU6_STROBE_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO   
+    this->strobedDigitalWord->setValue(Datum(M_INTEGER, 0));
+    
     return true;
 }
 
@@ -523,7 +559,7 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 					   parameters.find(PULSE_ON)->second);
 	}
 	
-	boost::shared_ptr<mw::Variable> lever1 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	boost::shared_ptr<mw::Variable> lever1 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
 	if(parameters.find(LEVER1) != parameters.end()) {
 		lever1 = reg->getVariable(parameters.find(LEVER1)->second);	
 		checkAttribute(lever1, 
@@ -532,7 +568,7 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 					   parameters.find(LEVER1)->second);
 	}
 
-	boost::shared_ptr<mw::Variable> lever2 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_INTEGER, 0)));	
+	boost::shared_ptr<mw::Variable> lever2 = boost::shared_ptr<mw::Variable>(new mw::ConstantVariable(Datum(M_BOOLEAN, 0)));	
 	if(parameters.find(LEVER2) != parameters.end()) {
 		lever2 = reg->getVariable(parameters.find(LEVER2)->second);	
 		checkAttribute(lever2, 
@@ -583,10 +619,10 @@ boost::shared_ptr<mw::Component> LabJackU6DeviceFactory::createObject(std::map<s
 	boost::shared_ptr <mw::Component> new_daq = boost::shared_ptr<mw::Component>(new LabJackU6Device(scheduler,
 																									 pulse_duration, 
 																									 pulse_on, 
-																									 lever1, 
-																									 lever2,
                                                                                                      lever1_solenoid,
 																									 lever2_solenoid,
+																									 lever1, 
+																									 lever2,
 																									 laser_trigger,
 																									 strobed_digital_word));
 	return new_daq;
@@ -644,32 +680,26 @@ void LabJackU6Device::detachPhysicalDevice() {
 bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     /// set up IO ports
     uint8 sendDataBuff[7]; // recDataBuff[1];
-	uint8 Errorcode, ErrorFrame;
-	
+    uint8 Errorcode, ErrorFrame;
+    
 
     // Setup FIO as constants specify.  
     //       EIO always output
     //       CIO mask is hardcoded
     
-	sendDataBuff[0] = 29;		// PortDirWrite
+    sendDataBuff[0] = 29;       // PortDirWrite
     sendDataBuff[1] = 0xff;     // update mask for FIO: update all
     sendDataBuff[2] = 0xff;     // update mask for EIO
     sendDataBuff[3] = 0x0f;     // update mask for CIO (only 4 bits)
     
-	sendDataBuff[4] = ( (0x01 << LJU6_REWARD_FIO)    //
-                        | (0x01 << LJU6_LEVER1SOLENOID_FIO)
-                        | (0x01 << LJU6_LEVER2SOLENOID_FIO)
-                        | (0x01 << LJU6_LASERTRIGGER_FIO) 
-                        | (0x00 << LJU6_LEVER1_FIO) 
-                        | (0x00 << LJU6_LEVER2_FIO) 
-                        | (0x01 << LJU6_STROBE_FIO) ); 
-                                // FIO dir data: 1 is output 0 is input
+    sendDataBuff[4] = ljPortDir[0];
+    sendDataBuff[5] = ljPortDir[1];
+    sendDataBuff[6] = ljPortDir[2];         
+        
 
-	sendDataBuff[5] = 0xff;		// EIO dir: all output
-	sendDataBuff[6] = 0x0f;		// CIO dir: all output (only 4 bits)
-	
-
-    //printf("*****************Output %x %x %x %x\n", sendDataBuff[0], sendDataBuff[1], sendDataBuff[2], sendDataBuff[3]);
+    //mprintf(M_IODEVICE_MESSAGE_DOMAIN, "*****************Output %02x %02x %02x %02x %02x %02x %02x\n", 
+    //        sendDataBuff[0], sendDataBuff[1], sendDataBuff[2], sendDataBuff[3], 
+    //        sendDataBuff[4], sendDataBuff[5], sendDataBuff[6]);
     
     if(ehFeedback(Handle, sendDataBuff, 7, &Errorcode, &ErrorFrame, NULL, 0) < 0) {
         mwarning(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
@@ -678,19 +708,7 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     if(Errorcode) {
         mwarning(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
         return false;
-    }
-
-	// set output ports to desired state here
-    if (!ljU6WriteDO(Handle, LJU6_LEVER1SOLENOID_FIO, 0) == 1)
-        return false; // merror is done in ljU6WriteDO
-    if (!ljU6WriteDO(Handle, LJU6_LEVER2SOLENOID_FIO, 0) == 1) 
-        return false; // merror is done in ljU6WriteDO
-    if (!ljU6WriteDO(Handle, LJU6_REWARD_FIO, 0) == 1) 
-        return false; // merror is done in ljU6WriteDO
-    if (!ljU6WriteDO(Handle, LJU6_LASERTRIGGER_FIO, 0) == 1) 
-        return false; // merror is done in ljU6WriteDO    
-    if (!ljU6WriteDO(Handle, LJU6_STROBE_FIO, 0) == 1) 
-        return false; // merror is done in ljU6WriteDO    
+    } 
 
     return true;
 
@@ -705,7 +723,6 @@ bool LabJackU6Device::ljU6ReadPorts(HANDLE Handle,
     uint8 sendDataBuff[1], recDataBuff[3];
     uint8 Errorcode, ErrorFrame;
 	
-	mprintf("In ReadPorts");
     sendDataBuff[0] = 26;       //IOType is PortStateRead
 	
     if(ehFeedback(Handle, sendDataBuff, 1, &Errorcode, &ErrorFrame, recDataBuff, 3) < 0)
@@ -717,7 +734,8 @@ bool LabJackU6Device::ljU6ReadPorts(HANDLE Handle,
 	*eioState = recDataBuff[1];
 	*cioState = recDataBuff[2];
 
-    mprintf("FIO 0x%x EIO 0x%x CIO 0x%x \n", *fioState, *eioState, *cioState);
+    // debug
+    //mprintf("FIO 0x%x EIO 0x%x CIO 0x%x", *fioState, *eioState, *cioState);
     return 0;
     
 }
