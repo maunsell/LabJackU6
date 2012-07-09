@@ -24,6 +24,15 @@
 #define LJU6_DITASK_WARN_SLOP_US     50000
 #define LJU6_DITASK_FAIL_SLOP_US     50000
 
+// dig output: Use a 12-bit word; EIO0-7, CIO0-2, all encoded below
+#define LJU6_REWARD_FIO         0
+#define LJU6_LEVER1_FIO         1
+#define LJU6_LEVER1SOLENOID_FIO 2
+#define LJU6_LASERTRIGGER_FIO   3
+#define LJU6_LEVER2_FIO         4
+#define LJU6_LEVER2SOLENOID_FIO 5
+#define LJU6_STROBE_FIO         7
+
 
 using namespace std;
 
@@ -105,8 +114,7 @@ public:
 	bool readDI(bool *outLever1, bool *outLever2);
 	void pulseDOHigh(int pulseLengthUS);
 	void pulseDOLow();
-	void lever1SolenoidDO(bool state);
-    void lever2SolenoidDO(bool state);
+	void leverSolenoidDO(bool state, long channel);
 	void laserDO(bool state);
 	void strobedDigitalWordDO(unsigned int digWord);
 	
@@ -127,13 +135,13 @@ public:
 	virtual void setLever1Solenoid(Datum data) {   
 		if (getActive()) {
 			bool lever1SolenoidState = (bool)data;
-			this->lever1SolenoidDO(lever1SolenoidState);
+			this->leverSolenoidDO(lever1SolenoidState, LJU6_LEVER1SOLENOID_FIO);
 		}
 	}
 	virtual void setLever2Solenoid(Datum data) {   
 		if (getActive()) {
 			bool lever2SolenoidState = (bool)data;
-			this->lever2SolenoidDO(lever2SolenoidState);
+			this->leverSolenoidDO(lever2SolenoidState, LJU6_LEVER2SOLENOID_FIO);
 		}
 	}
 	

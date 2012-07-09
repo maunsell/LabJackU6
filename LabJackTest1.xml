@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<monkeyml version="1.0">
+    <io_devices tag="IO Devices">
+        <iodevice tag="LabJackU6" priority="" type="LabJackU6" 
+		  pulse_duration="juice" pulse_on="juice" 
+		  lever1_press="lever1" lever2_press="lever2" 
+		  lever1_solenoid="lever1Solenoid" lever2_solenoid="lever2Solenoid" 
+		  laser_trigger="laserTriggerFIO" strobed_digital_word="strobedDigitalWord">
+	</iodevice>
+    </io_devices>
+    <variables tag="Variables">
+
+      <variable tag="lever1" full_name="lever1" default_value="0" scope="GLOBAL" type="integer" editable="never" logging="when_changed"></variable>
+      <variable tag="lever2" full_name="lever2" default_value="0" scope="GLOBAL" type="integer" editable="never" logging="when_changed"></variable>
+      <variable tag="lever1Solenoid" full_name="lever1Solenoid" default_value="0" scope="GLOBAL" type="integer" logging="when_changed" persistant="0"></variable>
+      <variable tag="lever2Solenoid" full_name="lever1Solenoid" default_value="0" scope="GLOBAL" type="integer" logging="when_changed" persistant="0"></variable>
+      <variable tag="laserTriggerFIO" full_name="laserTriggerFIO" default_value="0" scope="GLOBAL" type="boolean" logging="when_changed" persistant="0"></variable>
+      <variable tag="strobedDigitalWord" full_name="strobedDigitalWord" default_value="0" scope="GLOBAL" type="integer" logging="when_changed" persistant="0"></variable>
+      <variable tag="juice" full_name="juice" scope="GLOBAL" logging="when_changed" default_value="0" type="integer"></variable>
+    </variables>
+
+    <stimuli tag="Stimuli">
+        <stimulus type="blank_screen" tag="background" color="0.5,0.5,0.5"></stimulus>
+	<stimulus type="drifting_grating" tag="driftStimulus" 
+                  direction="0" starting_phase="0" 
+		  spatial_frequency="0.1"
+		  speed="49" 
+		  grating_type="sinusoid" mask="gaussian" std_dev="0.3" mean="0.1" 
+		  x_size="10" y_size="10"
+		  x_position="0" y_position="0"
+		  rotation="0" 
+		  alpha_multiplier="1.0"></stimulus>
+    </stimuli>
+    <experiment tag="Experiment" full_name="">
+        <protocol tag="JuiceOnHoldProtocol" full_name="" selection="sequential" nsamples="1" sampling_method="cycles" description="" interruptible="YES">
+            <trial tag="Trial 01" nsamples="10000" sampling_method="cycles" selection="sequential">
+                <task_system tag="TS" full_name="TS" interruptable="YES" description="" interruptible="YES" 
+                             _error="Task Systems must contain >=1 transition that yields to parent">
+
+                    <task_system_state tag="Intertrial" interruptible="YES">
+		        <!-- simulate trial setup -->
+                        <!-- <action type="assignment" variable="laserTriggerFIO" value="0"></action> -->
+			<action type="assignment" variable="strobedDigitalWord" value="0"></action>
+                        <action type="start_device_IO" device="LabJackU6"></action>
+
+                        <action type="start_timer" timer="itiTimer" timebase="" duration="1000" duration_units="ms"></action>
+                        <transition type="timer_expired" target="Run" timer="itiTimer"></transition>
+		    </task_system_state>
+			
+                    <task_system_state tag="Run" interruptible="YES">
+		      <!--                        <action type="assignment" tag="-" variable="laserTriggerFIO" value="1"></action>  -->
+
+			<action type="queue_stimulus" stimulus="driftStimulus"></action>
+			<action type="play_dynamic_stimulus" stimulus="driftStimulus"></action>
+			<action type="assignment" variable="strobedDigitalWord" value="4"></action>
+			<action type="update_stimulus_display"></action>
+                        <action type="start_timer" timer="stimTimer" timebase="" duration="1000" duration_units="ms"></action>
+			<action type="report" message="Stim on"></action>
+
+                        <transition type="timer_expired" target="End" timer="stimTimer"></transition>
+                    </task_system_state>
+
+                    <task_system_state tag="End" interruptible="YES">
+			<action type="dequeue_stimulus" stimulus="driftStimulus"></action>
+			<action tag="Update Display" type="update_stimulus_display"></action>
+			<action type="report" message="Stim off"></action>
+                        <action type="stop_device_IO" device="LabJackU6"></action>
+
+                        <transition type="yield" tag="return to parent task system"></transition>
+                    </task_system_state>
+
+                </task_system>
+              </trial>
+        </protocol>
+    </experiment>
+</monkeyml>
+

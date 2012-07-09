@@ -21,13 +21,6 @@
 #define kDIDeadtimeUS	5000	
 #define kDIReportTimeUS	5000
 
-//#define LJU6_STROBE_FIO       7   // Use a 12-bit word; EIO0-7, CIO0-2, all encoded below
-#define LJU6_LASERTRIGGER_FIO   3
-#define LJU6_LEVER1SOLENOID_FIO 2
-#define LJU6_LEVER2SOLENOID_FIO 5
-#define LJU6_REWARD_FIO         0
-#define LJU6_LEVER1_FIO         1
-#define LJU6_LEVER2_FIO         4
 
 
 #define LJU6_EMPIRICAL_DO_LATENCY_MS 1   // average when plugged into a highspeed hub.  About 8ms otherwise
@@ -200,35 +193,23 @@ void LabJackU6Device::pulseDOLow() {
 	
 }
     
-void LabJackU6Device::lever1SolenoidDO(bool state) {
+void LabJackU6Device::leverSolenoidDO(bool state, long channel) {
     // Takes and releases driver lock
     
     boost::mutex::scoped_lock lock(ljU6DriverLock);
 
-    if (eDO(ljHandle, LJU6_LEVER1SOLENOID_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing lever solenoid state; device likely to be broken (state %d)", state);
+    if (ljU6WriteDO(ljHandle, channel, state) != true) {  
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing lever 1 solenoid state; device likely to be broken (state %d)", state);
     }
 }
-
-void LabJackU6Device::lever2SolenoidDO(bool state) {
-    // Takes and releases driver lock
-    
-    boost::mutex::scoped_lock lock(ljU6DriverLock);
-
-    if (eDO(ljHandle, LJU6_LEVER2SOLENOID_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing lever solenoid state; device likely to be broken (state %d)", state);
-    }
-	 
-}
-
 
 void LabJackU6Device::laserDO(bool state) {
     // Takes and releases driver lock
     
     boost::mutex::scoped_lock lock(ljU6DriverLock);
 	
-    if (eDO(ljHandle, LJU6_LASERTRIGGER_FIO, state) < 0) {  // note eDO output convention: 0==success, negative values errorcodes
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing laser trigger state; device likely to be broken (state %d)", state);
+    if (ljU6WriteDO(ljHandle, LJU6_LASERTRIGGER_FIO, state) != true) {  
+        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: writing laser trigger state; device likely to be broken (state %d)", state);
     }
 	
 }
@@ -266,7 +247,7 @@ bool LabJackU6Device::readDI(bool *outLever1, bool *outLever2)
 	}
     
 	MWTime st = clock->getCurrentTimeUS();
-	if (!ljU6ReadPorts(ljHandle, &fioState, &eioState, &cioState)) {
+	if (ljU6ReadPorts(ljHandle, &fioState, &eioState, &cioState) < 0 ) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "Error reading DI, stopping IO and returning FALSE");
         stopDeviceIO();  // We are seeing USB errors causing this, and the U6 doesn't work anyway, so might as well stop the threads
         return false;
@@ -486,8 +467,8 @@ bool LabJackU6Device::stopDeviceIO(){
         // force off solenoid
         this->lever1Solenoid->setValue(false);
         this->lever2Solenoid->setValue(false);
-        lever1SolenoidDO(false);
-        lever2SolenoidDO(false);
+        leverSolenoidDO(false, LJU6_LEVER1SOLENOID_FIO);
+        leverSolenoidDO(false, LJU6_LEVER2SOLENOID_FIO);
 		
 		return false;
 	}
@@ -666,27 +647,24 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
 	uint8 Errorcode, ErrorFrame;
 	
 
-    // Don't need to configure the laser or leversolenoid port, just use eDO
+    // Setup FIO as constants specify.  
+    //       EIO always output
+    //       CIO mask is hardcoded
     
-    ////setup one to be output, one input, and set output to zero
-    //sendDataBuff[0] = 13;       //IOType is BitDirWrite
-    //sendDataBuff[1] = (LJU6_SOLOLEVER_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
-    //sendDataBuff[2] = 13;       //IOType is BitDirWrite
-    //sendDataBuff[3] = LJU6_REWARD_FIO & 0x0f | (1 << 7);  //IONumber(bits 0-4) + Direction (bit 7; 1 is output)
-    //sendDataBuff[4] = 11;             //IOType is BitStateWrite
-    //sendDataBuff[5] = (LJU6_REWARD_FIO & 0x0f) | (0 << 7);  //IONumber(bits 0-4) + State (bit 7)
-	
 	sendDataBuff[0] = 29;		// PortDirWrite
-	sendDataBuff[1] = ( (0x01 << LJU6_REWARD_FIO) | (0x01 << LJU6_SOLOLEVER_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
-					   |(0x01 << LJU6_LASERTRIGGER_FIO) | (0x01 << LJU6_PAIRLEVER1_FIO) | (0x01 << LJU6_PAIRLEVER2_FIO) 
-					   |(0x01 << 7) ); 
-								// FIO mask.  Note pin 7 is hardcoded to be the strobe.
-	sendDataBuff[2] = 0xff;		// EIO mask
-	sendDataBuff[3] = 0x0f;		// CIO mask
-	sendDataBuff[4] = ( (0x01 << LJU6_REWARD_FIO) | (0x00 << LJU6_SOLOLEVER_FIO) | (0x01 << LJU6_LEVERSOLENOID_FIO)
-					   |(0x01 << LJU6_LASERTRIGGER_FIO) | (0x00 << LJU6_PAIRLEVER1_FIO) | (0x00 << LJU6_PAIRLEVER2_FIO) 
-					   |(0x01 << 7) ); 
-								// FIO dir data: 1 is output 0 is input (only input now is levers)
+    sendDataBuff[1] = 0xff;     // update mask for FIO: update all
+    sendDataBuff[2] = 0xff;     // update mask for EIO
+    sendDataBuff[3] = 0x0f;     // update mask for CIO (only 4 bits)
+    
+	sendDataBuff[4] = ( (0x01 << LJU6_REWARD_FIO)    //
+                        | (0x01 << LJU6_LEVER1SOLENOID_FIO)
+                        | (0x01 << LJU6_LEVER2SOLENOID_FIO)
+                        | (0x01 << LJU6_LASERTRIGGER_FIO) 
+                        | (0x00 << LJU6_LEVER1_FIO) 
+                        | (0x00 << LJU6_LEVER2_FIO) 
+                        | (0x01 << LJU6_STROBE_FIO) ); 
+                                // FIO dir data: 1 is output 0 is input
+
 	sendDataBuff[5] = 0xff;		// EIO dir: all output
 	sendDataBuff[6] = 0x0f;		// CIO dir: all output (only 4 bits)
 	
@@ -703,50 +681,23 @@ bool LabJackU6Device::ljU6ConfigPorts(HANDLE Handle) {
     }
 
 	// set output ports to desired state here
-    if (eDO(Handle, LJU6_LEVERSOLENOID_FIO, 0) < 0) {  // set to low, automatically configures too
-        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
-        return false;
-    }
-    if (eDO(Handle, LJU6_REWARD_FIO, 0) < 0) {  // set to low, automatically configures too
-        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehDO error, see stdout");  // note we will get a more informative error on stdout
-        return false;
-    }
-	
-	
+    if (!ljU6WriteDO(Handle, LJU6_LEVER1SOLENOID_FIO, 0) == 1)
+        return false; // merror is done in ljU6WriteDO
+    if (!ljU6WriteDO(Handle, LJU6_LEVER2SOLENOID_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO
+    if (!ljU6WriteDO(Handle, LJU6_REWARD_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO
+    if (!ljU6WriteDO(Handle, LJU6_LASERTRIGGER_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO    
+    if (!ljU6WriteDO(Handle, LJU6_STROBE_FIO, 0) == 1) 
+        return false; // merror is done in ljU6WriteDO    
+
     return true;
 
     // cleanup now done externally to this function
 }
 
 
-bool LabJackU6Device::ljU6ReadDI(HANDLE Handle, long Channel, long* State) {
-    // returns: 1 on success, 0 on error
-    // output written to State
-    
-	/*
-    uint8 sendDataBuff[4], recDataBuff[1];
-    uint8 Errorcode, ErrorFrame;
-
-    sendDataBuff[0] = 10;       //IOType is BitStateRead
-    sendDataBuff[1] = Channel;  //IONumber
-    
-    if(ehFeedback(Handle, sendDataBuff, 2, &Errorcode, &ErrorFrame, recDataBuff, 1) < 0) {
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "bug: ehFeedback error, see stdout");  // note we will get a more informative error on stdout
-        return false;
-    }
-    if(Errorcode) {
-        merror(M_IODEVICE_MESSAGE_DOMAIN, "ehFeedback: error with command, errorcode was %d");
-        return false;
-    }
-    
-    State = (long int)recDataBuff[0];
-	 */
-	if (eDI(Handle, Channel, State) < 0) {  // val is written to State
-		return false;
-	}
-	
-    return true;
-}
 
 bool LabJackU6Device::ljU6ReadPorts(HANDLE Handle, 
 									unsigned int *fioState, unsigned int *eioState, unsigned int *cioState)
@@ -754,10 +705,10 @@ bool LabJackU6Device::ljU6ReadPorts(HANDLE Handle,
     uint8 sendDataBuff[1], recDataBuff[3];
     uint8 Errorcode, ErrorFrame;
 	
-	
+	mprintf("In ReadPorts");
     sendDataBuff[0] = 26;       //IOType is PortStateRead
 	
-    if(ehFeedback(Handle, sendDataBuff, 1, &Errorcode, &ErrorFrame, recDataBuff, 1) < 0)
+    if(ehFeedback(Handle, sendDataBuff, 1, &Errorcode, &ErrorFrame, recDataBuff, 3) < 0)
         return -1;
     if(Errorcode)
         return (long)Errorcode;
@@ -765,7 +716,10 @@ bool LabJackU6Device::ljU6ReadPorts(HANDLE Handle,
 	*fioState = recDataBuff[0];
 	*eioState = recDataBuff[1];
 	*cioState = recDataBuff[2];
+
+    mprintf("FIO 0x%x EIO 0x%x CIO 0x%x \n", *fioState, *eioState, *cioState);
     return 0;
+    
 }
 
 bool LabJackU6Device::ljU6WriteDO(HANDLE Handle, long Channel, long State) {
