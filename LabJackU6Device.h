@@ -154,8 +154,10 @@ public:
 		if (getActive()) {
 			unsigned int digWord = (int)data;
 			this->strobedDigitalWordDO(digWord);
-		}
-	}
+		} else {
+            merror(M_IODEVICE_MESSAGE_DOMAIN, "LJU6: not running; not writing to strobed port (data was 0x%02x)", (int)data);
+        }
+    }
 	
 	virtual void setActive(bool _active){
 		boost::mutex::scoped_lock active_lock(active_mutex);
