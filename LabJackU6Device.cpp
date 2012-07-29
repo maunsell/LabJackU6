@@ -359,7 +359,6 @@ bool LabJackU6Device::initialize() {
 	if (VERBOSE_IO_DEVICE >= 2) {
 		mprintf("LabJackU6Device: initialize");
 	}
-    this->variableSetup();
 
     boost::mutex::scoped_lock lock(ljU6DriverLock);
     assert(ljHandle == NULL);  // should not try to configure if already open.  Perhaps can relax this in the future
@@ -374,7 +373,11 @@ bool LabJackU6Device::initialize() {
     if (VERBOSE_IO_DEVICE >= 0) {
         mprintf("LabJackU6Device::initialize: found LabJackU6");
     }
-    
+
+	// This configures digital output on the ports so do it after we setup the hardware lines.
+	this->variableSetup();
+
+	
     // set output ports to desired state here
     if (!ljU6WriteDO(ljHandle, LJU6_LEVER1SOLENOID_FIO, 0) == 1)
         return false; // merror is done in ljU6WriteDO
@@ -412,13 +415,13 @@ bool LabJackU6Device::setupU6PortsAndRestartIfDead() {
         // assume dead
         
         // Force a USB re-enumerate, and reconnect
-        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "LJU6 found dead, restarting.  (bug if not on restart)");
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "LJU6 found dead, restarting.  (bug if not on MWServer restart)");
 
         libusb_reset_device((libusb_device_handle *)ljHandle); // patched usb library uses ReEnumerate
         closeUSBConnection(ljHandle);
 
-        sleep(2); // histed: MaunsellMouse1 - 0.1s not enough, 0.2 works, add padding
-        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "Sleeping for 2 s after restarting LJU6");
+        sleep(1.2); // histed: MaunsellMouse1 - 0.1s not enough, 0.2 works, add padding
+        mwarning(M_IODEVICE_MESSAGE_DOMAIN, "Sleeping for 1.2 s after restarting LJU6");
     
         if( (ljHandle = openUSBConnection(-1)) == NULL) {
             merror(M_IODEVICE_MESSAGE_DOMAIN, "Error: could not reopen USB U6 device after reset; U6 will not work now.");
