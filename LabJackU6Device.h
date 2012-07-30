@@ -155,7 +155,10 @@ public:
 			unsigned int digWord = (int)data;
 			this->strobedDigitalWordDO(digWord);
 		} else {
-            merror(M_IODEVICE_MESSAGE_DOMAIN, "LJU6: not running; not writing to strobed port (data was 0x%02x)", (int)data);
+			// silent: we need to doublecheck the active/deviceIORunning states and make sure they're doing the right thing.
+			// here, we set the value of this variable to zero on init; active/deviceIORunning is true only
+			//   during a trial.  I think the right thing to do is silently drop the output function.
+            //merror(M_IODEVICE_MESSAGE_DOMAIN, "LJU6: not running; not writing to strobed port (data was 0x%02x)", (int)data);
         }
     }
 	
