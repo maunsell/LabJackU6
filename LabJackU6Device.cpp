@@ -249,6 +249,9 @@ bool LabJackU6Device::readLeverDI(bool *outLever1, bool *outLever2)
 	static unsigned int lastLever1State = 0xff;
 	static unsigned int lastLever2State = 0xff;
 	static long unsigned slowCount = 0;
+	static long unsigned allCount = 0;
+	
+	double pct;
 	
 	boost::mutex::scoped_lock lock(ljU6DriverLock);
 	
@@ -256,6 +259,7 @@ bool LabJackU6Device::readLeverDI(bool *outLever1, bool *outLever2)
 		return false;
 	}
     
+	
 	MWTime st = clock->getCurrentTimeUS();
 	if (ljU6ReadPorts(ljHandle, &fioState, &eioState, &cioState) < 0 ) {
         merror(M_IODEVICE_MESSAGE_DOMAIN, "Error reading DI, stopping IO and returning FALSE");
@@ -263,18 +267,22 @@ bool LabJackU6Device::readLeverDI(bool *outLever1, bool *outLever2)
         return false;
     }
     MWTime elT = clock->getCurrentTimeUS()-st;
-    
+    allCount = allCount+1;
+	
+
 	if (elT > kDIReportTimeUS) {
-		if (++slowCount < 10) {
-			merror(M_IODEVICE_MESSAGE_DOMAIN, "ljU6ReadPorts time elapsed is %.3f ms", elT / 1000.0);
+		++slowCount;
+		if ((slowCount < 20) || (slowCount % 10 == 0)) {
+			pct = 100.0*((double)slowCount+1)/((double)allCount);
+			mwarning(M_IODEVICE_MESSAGE_DOMAIN, "read port elapsed: this %.3fms, >%.0f ms %d/%d times (%4.3f%%)", 
+					 elT / 1000.0, 
+					 kDIReportTimeUS / 1000.0,
+					 slowCount, 
+					 allCount, 
+					 pct);
 		}
-		else if ((slowCount < 100 && !(slowCount % 10)) || (!(slowCount % 1000))) {
-			merror(M_IODEVICE_MESSAGE_DOMAIN, "!! read port time elapsed: this time %.3f, >%.0f ms %d times", 
-					elT / 1000.0, 
-					kDIReportTimeUS / 1000.0,
-					slowCount);
-		}
-    }
+	}
+	
     lever1State = (fioState >> LJU6_LEVER1_FIO) & 0x01;
     lever2State = (fioState >> LJU6_LEVER2_FIO) & 0x01;
     
